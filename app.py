@@ -4,7 +4,7 @@ import pandas as pd
 # Configurazione della pagina per sfruttare tutto lo schermo (Layout largo)
 st.set_page_config(page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide")
 
-st.title("📊 Alfredo")
+st.title("Alfredo")
 st.markdown("Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio.")
 
 # Elenco dei campi imprescindibili richiesti
