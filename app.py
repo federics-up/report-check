@@ -44,38 +44,31 @@ if file_caricato is not None:
 
         st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
 
-        # --- LOGICA CORRETTA PER VERIFICA ALTERNANZA LOGO/TEXT ---
-        # Ordiniamo i dati per ID e per tipo per garantire la sequenzialità temporale
-        df_ordinato = df.sort_values(by=["Detections_MxM_Id", "tipo"]).reset_index(
-            drop=True
+        # --- NUOVA LOGICA ALLARME DOPPIONE CONTIGUO ---
+        # Definiamo le colonne che, se uguali e contigue, generano un mero doppione errato
+        colonne_controllo_doppione = [
+            "Data",
+            "Detections_MxM_Id",
+            "Placement",
+            "Minuto",
+            "tipo",
+            "sec_to_time(dmm.durata)",
+            "Area Totale",
+            "Area Media Per Sec",
+            "% Schermo Media Per Sec",
+        ]
+
+        # Controlliamo se una riga è identica alla riga precedente o successiva solo per queste colonne specifiche
+        doppione_precedente = df.duplicated(
+            subset=colonne_controllo_doppione, keep=False
         )
 
-        # Creiamo una serie che ci dice se l'elemento successivo ha lo stesso 'tipo' (es: logo dopo logo)
-        # e se appartiene allo stesso ID o a ID immediatamente contigui
-        tipo_uguale_successivo = df_ordinato["tipo"] == df_ordinato["tipo"].shift(-1)
-        id_vicino = (
-            df_ordinato["Detections_MxM_Id"].shift(-1)
-            - df_ordinato["Detections_MxM_Id"]
-        ) <= 1
+        # Definiamo i criteri per i campi chiave vuoti
+        campi_chiave_vuoti = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
+        righe_con_vuoti = df[campi_chiave_vuoti].isnull().any(axis=1)
 
-        # L'allarme si attiva solo se due tipi uguali sono contigui/nello stesso ID
-        df_ordinato["Allarme_Mancata_Alternanza"] = tipo_uguale_successivo & id_vicino
-
-        # Riportiamo l'allarme sul DataFrame originale usando l'indice o mappando
-        # Per sicurezza verifichiamo gli ID che hanno fallito il test di alternanza
-        id_con_errore_alternanza = df_ordinato[
-            df_ordinato["Allarme_Mancata_Alternanza"] == True
-        ]["Detections_MxM_Id"].unique()
-
-        # Definiamo le righe con errori reali
-        campi_chiave = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
-        righe_con_vuoti = df[campi_chiave].isnull().any(axis=1)
-        righe_errore_alternanza = df["Detections_MxM_Id"].isin(
-            id_con_errore_alternanza
-        )
-
-        # Unione degli errori reali (Celle vuote o errore di alternanza logo/text)
-        righe_con_errori = righe_con_vuoti | righe_errore_alternanza
+        # Unione degli errori reali (Celle vuote o errore di doppione contiguo specchio)
+        righe_con_errori = righe_con_vuoti | doppione_precedente
 
         # Creazione della maschera a Schede (Tab) per organizzare lo spazio
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
@@ -109,7 +102,7 @@ if file_caricato is not None:
 
             # 2. Controllo Celle Vuote
             vuoti_per_colonna = {
-                col: df[col].isnull().sum() for col in campi_chiave
+                col: df[col].isnull().sum() for col in campi_chiave_vuoti
             }
             totale_vuoti = sum(vuoti_per_colonna.values())
 
@@ -125,18 +118,18 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
                 )
 
-            # 3. Controllo Alternanza e Allarme Logo/Text (Nuova Logica)
-            num_errori_alternanza = len(id_con_errore_alternanza)
-            if num_errori_alternanza > 0:
+            # 3. Controllo Doppioni Contigui (Nuova Logica)
+            num_doppioni = doppione_precedente.sum()
+            if num_doppioni > 0:
                 st.error(
-                    f"🚨 **ALLARME ALTERNANZA:** Trovate anomalie nella sequenza! Ci sono **{num_errori_alternanza}** ID in cui 'logo' e 'text' non si alternano correttamente (es. duplicati consecutivi dello stesso tipo)."
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
                 )
                 st.info(
-                    "Consiglio: Usa la scheda 'Esplora la Tabella' e filtra per ERRORI per vedere gli ID bloccati."
+                    "Consiglio: Vai nella scheda 'Esplora la Tabella' e attiva il filtro degli ERRORI per isolarle e rimuoverle."
                 )
             else:
                 st.success(
-                    "✅ **Alternanza Logo/Text:** Superata. La presenza contemporanea di logo e testo rispetta l'alternanza corretta."
+                    "✅ **Univocità Rilevazioni:** Superata. Nessuna riga presenta doppioni specchio contigui."
                 )
 
         # --- TAB 2: ESPLORA LA TABELLA ---
@@ -167,7 +160,7 @@ if file_caricato is not None:
                     "Filtra per stato errore",
                     [
                         "Mostra tutti i dati",
-                        "Solo righe con ERRORI (Vuoti o Mancata Alternanza)",
+                        "Solo righe con ERRORI (Vuoti o Doppioni Contigui)",
                         "Solo righe CORRETTE",
                     ],
                 )
@@ -183,8 +176,11 @@ if file_caricato is not None:
             if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            # Filtro Errori Ottimizzato
-            if scelta_errore == "Solo righe con ERRORI (Vuoti o Mancata Alternanza)":
+            # Filtro Errori Basato sul Nuovo Criterio Specchio
+            if (
+                scelta_errore
+                == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)"
+            ):
                 df_filtrato = df_filtrato[righe_con_errori]
             elif scelta_errore == "Solo righe CORRETTE":
                 df_filtrato = df_filtrato[~righe_con_errori]
