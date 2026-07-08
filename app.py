@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
 )
 
-st.title("ALFREDO")
+st.title("📊 Validatore Dati Esposizione Brand")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
@@ -44,8 +44,7 @@ if file_caricato is not None:
 
         st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
 
-        # --- NUOVA LOGICA ALLARME DOPPIONE CONTIGUO ---
-        # Definiamo le colonne che, se uguali e contigue, generano un mero doppione errato
+        # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
         colonne_controllo_doppione = [
             "Data",
             "Detections_MxM_Id",
@@ -118,11 +117,11 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
                 )
 
-            # 3. Controllo Doppioni Contigui (Nuova Logica)
+            # 3. Controllo Doppioni Contigui
             num_doppioni = doppione_precedente.sum()
             if num_doppioni > 0:
                 st.error(
-                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
                 )
                 st.info(
                     "Consiglio: Vai nella scheda 'Esplora la Tabella' e attiva il filtro degli ERRORI per isolarle e rimuoverle."
@@ -176,7 +175,7 @@ if file_caricato is not None:
             if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            # Filtro Errori Basato sul Nuovo Criterio Specchio
+            # Filtro Errori
             if (
                 scelta_errore
                 == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)"
@@ -194,12 +193,11 @@ if file_caricato is not None:
 
             tot_rilevazioni = len(df)
             brand_unici = df["Brand"].nunique()
-            partite_totali = df["Partita"].nunique()
 
-            m1, m2, m3 = st.columns(3)
+            # Layout pulito a due colonne senza la voce delle partite
+            m1, m2 = st.columns(2)
             m1.metric("Totale Rilevazioni (Righe)", f"{tot_rilevazioni:,}")
             m2.metric("Marchi Monitorati", brand_unici)
-            m3.metric("Partite in Archivio", partite_totali)
 
     except Exception as e:
         st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
