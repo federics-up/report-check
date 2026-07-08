@@ -122,7 +122,7 @@ if file_caricato is not None:
             num_doppioni = doppione_precedente.sum()
             if num_doppioni > 0:
                 st.error(
-                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
                 )
                 st.info(
                     "Consiglio: Vai nella scheda 'Esplora la Tabella' e attiva il filtro degli ERRORI per isolarle e rimuoverle."
