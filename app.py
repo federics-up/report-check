@@ -257,4 +257,4 @@ if file_caricato is not None:
 
     except Exception as e:
         st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
-era: {e}")
+
