@@ -1,81 +1,115 @@
-import pandas as pd
 import streamlit as st
+import pandas as pd
 
-st.title("Validatore Dati Esposizione Brand")
-st.write("Carica il tuo file Excel o CSV per avviare il controllo automatico.")
+# Configurazione della pagina per sfruttare tutto lo schermo (Layout largo)
+st.set_page_config(page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide")
+
+st.title("📊 Alfredo")
+st.markdown("Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio.")
 
 # Elenco dei campi imprescindibili richiesti
 campi_obbligatori = [
-    "Emittente",
-    "Giornata",
-    "Partita",
-    "Brand",
-    "Data",
-    "Detections_MxM_Id",
-    "Minuto",
-    "Placement",
-    "tipo",
-    "sec_to_time(dmm.durata)",
-    "Area Totale",
-    "Area Media Per Sec",
-    "% Schermo Media Per Sec",
-    "Audience_AMR",
+    "Emittente", "Giornata", "Partita", "Brand", "Data", 
+    "Detections_MxM_Id", "Minuto", "Placement", "tipo", 
+    "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", 
+    "% Schermo Media Per Sec", "Audience_AMR"
 ]
 
-# Bottone di caricamento file sul web
-file_caricato = st.file_uploader(
-    "Scegli un file", type=["xlsx", "xls", "csv"]
-)
+# Maschera di caricamento principale in evidenza
+file_caricato = st.file_uploader("📂 Trascina qui il file Excel (.xlsx) o CSV", type=["xlsx", "xls", "csv"])
 
 if file_caricato is not None:
     try:
-        if file_caricato.name.endswith(".csv"):
+        # Caricamento intelligente del file
+        if file_caricato.name.endswith('.csv'):
             df = pd.read_csv(file_caricato)
         else:
             df = pd.read_excel(file_caricato)
-
-        st.success(f"File '{file_caricato.name}' caricato con successo!")
-
-        # 1. Verifica Struttura Colonne
-        colonne_presenti = df.columns.tolist()
-        colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
-
-        st.subheader("1. Verifica Struttura Colonne")
-        if colonne_mancanti:
-            st.error(
-                "❌ ERRORE CRITICO! Mancano le seguenti colonne imprescindibili:"
-            )
-            for c in colonne_mancanti:
-                st.write(f"- {c}")
-        else:
-            st.success("✅ Ottimo. Tutti i campi richiesti sono presenti.")
-
-            # Se la struttura è corretta, procediamo con gli altri controlli
+            
+        st.toast(f"File '{file_caricato.name}' caricato!", icon='✅')
+        
+        # Creazione della maschera a Schede (Tab) per organizzare lo spazio
+        tab_verifica, tab_esplora, tab_metriche = st.tabs([
+            "🔍 Esito della Verifica", 
+            "👀 Esplora la Tabella", 
+            "📈 Numeri Chiave"
+        ])
+        
+        # --- TAB 1: ESITO DELLA VERIFICA ---
+        with tab_verifica:
+            st.subheader("Rapporto di Controllo Qualità")
+            
+            # 1. Verifica Struttura Colonne
+            colonne_presenti = df.columns.tolist()
+            colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
+            
+            if colonne_mancanti:
+                st.error("❌ ERRORE CRITICO: La struttura del file non è corretta!")
+                st.write("Mancano le seguenti colonne fondamentali nel tuo file:")
+                for c in colonne_mancanti:
+                    st.markdown(f"- **{c}**")
+                st.stop() # Blocca l'esecuzione se mancano colonne
+            else:
+                st.success("✅ **Struttura Campi:** Superata. Tutti i 14 campi imprescindibili sono presenti.")
+            
             # 2. Controllo Celle Vuote
-            st.subheader("2. Verifica Celle Vuote")
             campi_chiave = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
-            vuoti_trovati = False
-            for col in campi_chiave:
-                num_vuoti = df[col].isnull().sum()
-                if num_vuoti > 0:
-                    st.warning(
-                        f"⚠️ Attenzione: '{col}' presenta {num_vuoti} righe vuote."
-                    )
-                    vuoti_trovati = True
-            if not vuoti_trovati:
-                st.success(
-                    "✅ Nessun valore mancante rilevato nei campi chiave."
-                )
-
-            # 3. Controllo Duplicati
-            st.subheader("3. Verifica Coerenza ID Rilevazione")
+            vuoti_per_colonna = {col: df[col].isnull().sum() for col in campi_chiave}
+            totale_vuoti = sum(vuoti_per_colonna.values())
+            
+            if totale_vuoti > 0:
+                st.warning(f"⚠️ **Celle Vuote Rilevate:** Ci sono alcune righe non compilate nei campi chiave.")
+                for col, qta in vuoti_per_colonna.items():
+                    if qta > 0:
+                        st.info(f"La colonna *{col}* ha **{qta}** righe vuote.")
+            else:
+                st.success("✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave.")
+                
+            # 3. Controllo Duplicati dell'ID
             id_duplicati = df["Detections_MxM_Id"].duplicated().sum()
             if id_duplicati > 0:
-                st.warning(
-                    f"⚠️ Attenzione: Rilevati {id_duplicati} codici 'Detections_MxM_Id' ripetuti."
-                )
+                st.error(f"❌ **Rilevazioni Duplicate:** Attenzione, ci sono **{id_duplicati}** ID di rilevazione inseriti più di una volta!")
+                st.info("Consiglio: Verifica se hai importato due volte lo stesso blocco di dati.")
             else:
-                st.success("✅ Coerenza ID verificata. Ogni rilevazione è univoca.")
+                st.success("✅ **Univocità Rilevazioni:** Superata. Ogni ID di rilevazione (`Detections_MxM_Id`) è unico.")
+
+        # --- TAB 2: ESPLORA LA TABELLA ---
+        with tab_esplora:
+            st.subheader("Visualizzazione Filtri e Dati Completi")
+            st.write("Usa questa sezione per cercare rapidamente informazioni all'interno del file appena caricato.")
+            
+            # Filtri dinamici nella maschera
+            col1, col2 = st.columns(2)
+            with col1:
+                lista_emittenti = ["Tutte"] + sorted(df["Emittente"].dropna().unique().tolist())
+                scelta_emittente = st.selectbox("Filtra per Canale TV (Emittente)", lista_emittenti)
+            with col2:
+                lista_brand = ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist())
+                scelta_brand = st.selectbox("Filtra per Marchio (Brand)", lista_brand)
+            
+            # Applicazione dei filtri alla tabella mostrata
+            df_filtrato = df.copy()
+            if scelta_emittente != "Tutte":
+                df_filtrato = df_filtrato[df_filtrato["Emittente"] == scelta_emittente]
+            if scelta_brand != "Tutti":
+                df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
+                
+            st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
+            st.dataframe(df_filtrato, use_container_width=True)
+
+        # --- TAB 3: NUMERI CHIAVE ---
+        with tab_metriche:
+            st.subheader("Panoramica Rapida dell'Assegno")
+            
+            # Calcolo di metriche al volo per dare utilità alla maschera
+            tot_rilevazioni = len(df)
+            brand_unici = df["Brand"].nunique()
+            partite_totali = df["Partita"].nunique()
+            
+            m1, m2, m3 = st.columns(3)
+            m1.metric("Totale Rilevazioni (Righe)", f"{tot_rilevazioni:,}")
+            m2.metric("Marchi Monitorati", brand_unici)
+            m3.metric("Partite in Archivio", partite_totali)
 
     except Exception as e:
-        st.error(f"Errore durante l'analisi del file: {e}")
+        st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
