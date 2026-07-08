@@ -1,9 +1,9 @@
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo con il nuovo nome ufficiale ALFREDO
+# Configurazione della pagina largo con il nuovo nome ufficiale
 st.set_page_config(
-    page_title="Alfredo - Validatore Brand", page_icon="🎮", layout="wide"
+    page_title="Secondo - Validatore Brand", page_icon="🎮", layout="wide"
 )
 
 
@@ -117,7 +117,7 @@ def applica_sfondo_sport_pixel(dataframe):
 
 
 # --- INTERFACCIA GRAFICA ---
-st.title("🕹️ Alfredo - Pixel Sports Edition")
+st.title("🕹️ Secondo - Pixel Sports Edition")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
@@ -153,9 +153,6 @@ if file_caricato is not None:
         st.toast(f"File '{file_caricato.name}' caricato!", icon="🎮")
 
         # ATTIVAZIONE DELLO SFONDO DINAMICO PIXEL ART
-        applica_sofndo_sport_pixel = applica_sfondo_sport_pixel(
-            df
-        )  # Correzione chiamata interna se necessario
         applica_sfondo_sport_pixel(df)
 
         # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
