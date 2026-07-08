@@ -1,17 +1,97 @@
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina per sfruttare tutto lo schermo (Layout largo)
+# Configurazione della pagina largo
 st.set_page_config(
     page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
 )
 
-st.title("📊 Validatore Dati Esposizione Brand")
+
+# --- FUNZIONE PER CAMBIARE LO SFONDO IN BASE ALLO SPORT ---
+def applica_sfondo_sport(dataframe):
+    # Uniamo tutti i testi delle partite per capire lo sport prevalente nel file
+    testo_partite = (
+        " ".join(dataframe["Partita"].astype(str).dropna().unique()).lower()
+    )
+
+    # Parole chiave per identificare lo sport
+    parole_basket = [
+        "bologna",
+        "madrid",
+        "monaco",
+        "atene",
+        "istanbul",
+        "tel aviv",
+        "milano",
+        "kaunas",
+        "belgrado",
+        "barcelona",
+        "valencia",
+        "munich",
+        "baskonia",
+        "basket",
+    ]
+    parole_calcio = ["milan", "inter", "juventus", "roma", "lazio", "napoli", "fcalcio"]
+
+    # Verifica lo sport e imposta i colori CSS dedicati
+    if any(parola in testo_partite for parola in parole_basket):
+        # STILE BASKET: Sfondo sfumato arancione/parquet e testi scuri leggibili
+        st.markdown(
+            """
+            <style>
+            .stApp {
+                background: linear-gradient(135deg, #ff9e43 0%, #e65c00 100%);
+            }
+            h1, p, label, .stMarkdown, .stTabs button {
+                color: #ffffff !important;
+            }
+            .stTabs button[aria-selected="true"] {
+                color: #ff9e43 !important;
+                background-color: white !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.sidebar.markdown("🏀 **Sport Rilevato: PALLACANESTRO**")
+
+    elif any(parola in testo_partite for parola in parole_calcio):
+        # STILE CALCIO: Sfondo sfumato verde erba/stadio
+        st.markdown(
+            """
+            <style>
+            .stApp {
+                background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
+            }
+            h1, p, label, .stMarkdown, .stTabs button {
+                color: #1e3d2f !important;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.sidebar.markdown("⚽ **Sport Rilevato: CALCIO**")
+
+    else:
+        # STILE GRIGIO NEUTRO DI DEFAULT
+        st.markdown(
+            """
+            <style>
+            .stApp {
+                background-color: #f5f5f5;
+            }
+            </style>
+            """,
+            unsafe_allow_html=True,
+        )
+
+
+# --- INTERFACCIA GRAFICA ---
+st.title("ALFREDO")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
 
-# Elenco dei campi imprescindibili richiesti
 campi_obbligatori = [
     "Emittente",
     "Giornata",
@@ -29,20 +109,21 @@ campi_obbligatori = [
     "Audience_AMR",
 ]
 
-# Maschera di caricamento principale in evidenza
 file_caricato = st.file_uploader(
     "📂 Trascina qui il file Excel (.xlsx) o CSV", type=["xlsx", "xls", "csv"]
 )
 
 if file_caricato is not None:
     try:
-        # Caricamento intelligente del file
         if file_caricato.name.endswith(".csv"):
             df = pd.read_csv(file_caricato)
         else:
             df = pd.read_excel(file_caricato)
 
         st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
+
+        # ATTIVAZIONE DELLO SFONDO DINAMICO
+        applica_sfondo_sport(df)
 
         # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
         colonne_controllo_doppione = [
@@ -56,20 +137,14 @@ if file_caricato is not None:
             "Area Media Per Sec",
             "% Schermo Media Per Sec",
         ]
-
-        # Controlliamo se una riga è identica alla riga precedente o successiva solo per queste colonne specifiche
         doppione_precedente = df.duplicated(
             subset=colonne_controllo_doppione, keep=False
         )
 
-        # Definiamo i criteri per i campi chiave vuoti
         campi_chiave_vuoti = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
         righe_con_vuoti = df[campi_chiave_vuoti].isnull().any(axis=1)
-
-        # Unione degli errori reali (Celle vuote o errore di doppione contiguo specchio)
         righe_con_errori = righe_con_vuoti | doppione_precedente
 
-        # Creazione della maschera a Schede (Tab) per organizzare lo spazio
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
             ["🔍 Esito della Verifica", "👀 Esplora la Tabella", "📈 Numeri Chiave"]
         )
@@ -78,7 +153,6 @@ if file_caricato is not None:
         with tab_verifica:
             st.subheader("Rapporto di Controllo Qualità")
 
-            # 1. Verifica Struttura Colonne
             colonne_presenti = df.columns.tolist()
             colonne_mancanti = [
                 c for c in campi_obbligatori if c not in colonne_presenti
@@ -88,9 +162,6 @@ if file_caricato is not None:
                 st.error(
                     "❌ ERRORE CRITICO: La struttura del file non è corretta!"
                 )
-                st.write(
-                    "Mancano le seguenti colonne fondamentali nel tuo file:"
-                )
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
                 st.stop()
@@ -99,7 +170,6 @@ if file_caricato is not None:
                     "✅ **Struttura Campi:** Superata. Tutti i 14 campi imprescindibili sono presenti."
                 )
 
-            # 2. Controllo Celle Vuote
             vuoti_per_colonna = {
                 col: df[col].isnull().sum() for col in campi_chiave_vuoti
             }
@@ -117,14 +187,10 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
                 )
 
-            # 3. Controllo Doppioni Contigui
             num_doppioni = doppione_precedente.sum()
             if num_doppioni > 0:
                 st.error(
-                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe che hanno gli stessi identici valori di un'altra riga (stesso ID, Data, Minuto, Tipo, Durata e Area)."
-                )
-                st.info(
-                    "Consiglio: Vai nella scheda 'Esplora la Tabella' e attiva il filtro degli ERRORI per isolarle e rimuoverle."
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe specchio contigue."
                 )
             else:
                 st.success(
@@ -134,11 +200,7 @@ if file_caricato is not None:
         # --- TAB 2: ESPLORA LA TABELLA ---
         with tab_esplora:
             st.subheader("Visualizzazione Filtri e Dati Completi")
-            st.write(
-                "Usa questa sezione per cercare rapidamente informazioni all'interno del file appena caricato."
-            )
 
-            # Filtri dinamici nella maschera distribuiti su 3 colonne
             col1, col2, col3 = st.columns(3)
             with col1:
                 lista_emittenti = ["Tutte"] + sorted(
@@ -164,18 +226,14 @@ if file_caricato is not None:
                     ],
                 )
 
-            # Applicazione dei filtri alla tabella mostrata
             df_filtrato = df.copy()
-
             if scelta_emittente != "Tutte":
                 df_filtrato = df_filtrato[
                     df_filtrato["Emittente"] == scelta_emittente
                 ]
-
             if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            # Filtro Errori
             if (
                 scelta_errore
                 == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)"
@@ -190,11 +248,9 @@ if file_caricato is not None:
         # --- TAB 3: NUMERI CHIAVE ---
         with tab_metriche:
             st.subheader("Panoramica Rapida dell'Assegno")
-
             tot_rilevazioni = len(df)
             brand_unici = df["Brand"].nunique()
 
-            # Layout pulito a due colonne senza la voce delle partite
             m1, m2 = st.columns(2)
             m1.metric("Totale Rilevazioni (Righe)", f"{tot_rilevazioni:,}")
             m2.metric("Marchi Monitorati", brand_unici)
