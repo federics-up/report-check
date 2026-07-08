@@ -1,18 +1,20 @@
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo con il nuovo nome ufficiale
+# Configurazione della pagina largo
 st.set_page_config(
-    page_title="Secondo - Validatore Brand", page_icon="🎮", layout="wide"
+    page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
 )
 
 
-# --- FUNZIONE PER CAMBIARE LO SFONDO IN PIXEL ART IN BASE ALLO SPORT ---
-def applica_sfondo_sport_pixel(dataframe):
+# --- FUNZIONE PER CAMBIARE LO SFONDO IN BASE ALLO SPORT ---
+def applica_sfondo_sport(dataframe):
+    # Uniamo tutti i testi delle partite per capire lo sport prevalente nel file
     testo_partite = (
         " ".join(dataframe["Partita"].astype(str).dropna().unique()).lower()
     )
 
+    # Parole chiave per identificare lo sport
     parole_basket = [
         "bologna",
         "madrid",
@@ -31,79 +33,47 @@ def applica_sfondo_sport_pixel(dataframe):
     ]
     parole_calcio = ["milan", "inter", "juventus", "roma", "lazio", "napoli", "fcalcio"]
 
+    # Verifica lo sport e imposta i colori CSS dedicati
     if any(parola in testo_partite for parola in parole_basket):
+        # STILE BASKET: Sfondo sfumato arancione/parquet e testi scuri leggibili
         st.markdown(
             """
             <style>
             .stApp {
-                background-color: #e65c00;
-                background-image: radial-gradient(#ff9e43 20%, transparent 20%),
-                                  radial-gradient(#ff9e43 20%, transparent 20%);
-                background-size: 40px 40px;
-                background-position: 0 0, 20px 20px;
-            }
-            .stApp::after {
-                content: "🏀🕺\\A 🏃‍♂️💨";
-                white-space: pre;
-                font-size: 90px;
-                position: fixed;
-                bottom: 20px;
-                right: 30px;
-                opacity: 0.25;
-                z-index: 0;
-                font-family: monospace;
+                background: linear-gradient(135deg, #ff9e43 0%, #e65c00 100%);
             }
             h1, p, label, .stMarkdown, .stTabs button {
                 color: #ffffff !important;
-                text-shadow: 2px 2px 0px #000000;
             }
             .stTabs button[aria-selected="true"] {
-                color: #e65c00 !important;
+                color: #ff9e43 !important;
                 background-color: white !important;
             }
             </style>
             """,
             unsafe_allow_html=True,
         )
-        st.sidebar.markdown("🏀 **Sport: PALLACANESTRO (8-BIT)**")
+        st.sidebar.markdown("🏀 **Sport Rilevato: PALLACANESTRO**")
 
     elif any(parola in testo_partite for parola in parole_calcio):
+        # STILE CALCIO: Sfondo sfumato verde erba/stadio
         st.markdown(
             """
             <style>
             .stApp {
-                background-color: #1e532b;
-                background-image: linear-gradient(45deg, #276b37 25%, transparent 25%, transparent 75%, #276b37 75%, #276b37),
-                                  linear-gradient(45deg, #276b37 25%, transparent 25%, transparent 75%, #276b37 75%, #276b37);
-                background-size: 60px 60px;
-                background-position: 0 0, 30px 30px;
-            }
-            .stApp::after {
-                content: "⚽🏃‍♂️\\A      🧱🧤";
-                white-space: pre;
-                font-size: 90px;
-                position: fixed;
-                bottom: 20px;
-                right: 30px;
-                opacity: 0.25;
-                z-index: 0;
-                font-family: monospace;
+                background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
             }
             h1, p, label, .stMarkdown, .stTabs button {
-                color: #ffffff !important;
-                text-shadow: 2px 2px 0px #000000;
-            }
-            .stTabs button[aria-selected="true"] {
-                color: #1e532b !important;
-                background-color: white !important;
+                color: #1e3d2f !important;
             }
             </style>
             """,
             unsafe_allow_html=True,
         )
-        st.sidebar.markdown("⚽ **Sport: CALCIO (8-BIT)**")
+        st.sidebar.markdown("⚽ **Sport Rilevato: CALCIO**")
 
     else:
+        # STILE GRIGIO NEUTRO DI DEFAULT
         st.markdown(
             """
             <style>
@@ -117,7 +87,7 @@ def applica_sfondo_sport_pixel(dataframe):
 
 
 # --- INTERFACCIA GRAFICA ---
-st.title("🕹️ Secondo - Pixel Sports Edition")
+st.title("📊 Validatore Dati Esposizione Brand")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
@@ -150,10 +120,10 @@ if file_caricato is not None:
         else:
             df = pd.read_excel(file_caricato)
 
-        st.toast(f"File '{file_caricato.name}' caricato!", icon="🎮")
+        st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
 
-        # ATTIVAZIONE DELLO SFONDO DINAMICO PIXEL ART
-        applica_sfondo_sport_pixel(df)
+        # ATTIVAZIONE DELLO SFONDO DINAMICO
+        applica_sfondo_sport(df)
 
         # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
         colonne_controllo_doppione = [
@@ -287,3 +257,4 @@ if file_caricato is not None:
 
     except Exception as e:
         st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
+era: {e}")
