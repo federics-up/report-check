@@ -87,7 +87,7 @@ def applica_sfondo_sport(dataframe):
 
 
 # --- INTERFACCIA GRAFICA ---
-st.title("📊 Validatore Dati Esposizione Brand")
+st.title("AFREDO")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
