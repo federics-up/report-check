@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
 )
 
-st.title("ALFREDO")
+st.title("📊 Validatore Dati Esposizione Brand")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
@@ -44,17 +44,38 @@ if file_caricato is not None:
 
         st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
 
-        # Pre-calcolo degli errori per il filtro dinamico
+        # --- LOGICA CORRETTA PER VERIFICA ALTERNANZA LOGO/TEXT ---
+        # Ordiniamo i dati per ID e per tipo per garantire la sequenzialità temporale
+        df_ordinato = df.sort_values(by=["Detections_MxM_Id", "tipo"]).reset_index(
+            drop=True
+        )
+
+        # Creiamo una serie che ci dice se l'elemento successivo ha lo stesso 'tipo' (es: logo dopo logo)
+        # e se appartiene allo stesso ID o a ID immediatamente contigui
+        tipo_uguale_successivo = df_ordinato["tipo"] == df_ordinato["tipo"].shift(-1)
+        id_vicino = (
+            df_ordinato["Detections_MxM_Id"].shift(-1)
+            - df_ordinato["Detections_MxM_Id"]
+        ) <= 1
+
+        # L'allarme si attiva solo se due tipi uguali sono contigui/nello stesso ID
+        df_ordinato["Allarme_Mancata_Alternanza"] = tipo_uguale_successivo & id_vicino
+
+        # Riportiamo l'allarme sul DataFrame originale usando l'indice o mappando
+        # Per sicurezza verifichiamo gli ID che hanno fallito il test di alternanza
+        id_con_errore_alternanza = df_ordinato[
+            df_ordinato["Allarme_Mancata_Alternanza"] == True
+        ]["Detections_MxM_Id"].unique()
+
+        # Definiamo le righe con errori reali
         campi_chiave = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
-
-        # Identifica le righe che hanno almeno una cella vuota nei campi chiave
         righe_con_vuoti = df[campi_chiave].isnull().any(axis=1)
+        righe_errore_alternanza = df["Detections_MxM_Id"].isin(
+            id_con_errore_alternanza
+        )
 
-        # Identifica le righe che hanno un ID duplicato
-        righe_con_id_duplicato = df["Detections_MxM_Id"].duplicated(keep=False)
-
-        # Unione di tutti i tipi di errore
-        righe_con_errori = righe_con_vuoti | righe_con_id_duplicato
+        # Unione degli errori reali (Celle vuote o errore di alternanza logo/text)
+        righe_con_errori = righe_con_vuoti | righe_errore_alternanza
 
         # Creazione della maschera a Schede (Tab) per organizzare lo spazio
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
@@ -80,7 +101,7 @@ if file_caricato is not None:
                 )
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
-                st.stop()  # Blocca l'esecuzione se mancano colonne
+                st.stop()
             else:
                 st.success(
                     "✅ **Struttura Campi:** Superata. Tutti i 14 campi imprescindibili sono presenti."
@@ -104,18 +125,18 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
                 )
 
-            # 3. Controllo Duplicati dell'ID
-            id_duplicati = df["Detections_MxM_Id"].duplicated().sum()
-            if id_duplicati > 0:
+            # 3. Controllo Alternanza e Allarme Logo/Text (Nuova Logica)
+            num_errori_alternanza = len(id_con_errore_alternanza)
+            if num_errori_alternanza > 0:
                 st.error(
-                    f"❌ **Rilevazioni Duplicate:** Attenzione, ci sono **{id_duplicati}** ID di rilevazione inseriti più di una volta!"
+                    f"🚨 **ALLARME ALTERNANZA:** Trovate anomalie nella sequenza! Ci sono **{num_errori_alternanza}** ID in cui 'logo' e 'text' non si alternano correttamente (es. duplicati consecutivi dello stesso tipo)."
                 )
                 st.info(
-                    "Consiglio: Verifica se hai importato due volte lo stesso blocco di dati."
+                    "Consiglio: Usa la scheda 'Esplora la Tabella' e filtra per ERRORI per vedere gli ID bloccati."
                 )
             else:
                 st.success(
-                    "✅ **Univocità Rilevazioni:** Superata. Ogni ID di rilevazione (`Detections_MxM_Id`) è unico."
+                    "✅ **Alternanza Logo/Text:** Superata. La presenza contemporanea di logo e testo rispetta l'alternanza corretta."
                 )
 
         # --- TAB 2: ESPLORA LA TABELLA ---
@@ -146,7 +167,7 @@ if file_caricato is not None:
                     "Filtra per stato errore",
                     [
                         "Mostra tutti i dati",
-                        "Solo righe con ERRORI (Vuoti o Duplicati)",
+                        "Solo righe con ERRORI (Vuoti o Mancata Alternanza)",
                         "Solo righe CORRETTE",
                     ],
                 )
@@ -154,18 +175,16 @@ if file_caricato is not None:
             # Applicazione dei filtri alla tabella mostrata
             df_filtrato = df.copy()
 
-            # Filtro Emittente
             if scelta_emittente != "Tutte":
                 df_filtrato = df_filtrato[
                     df_filtrato["Emittente"] == scelta_emittente
                 ]
 
-            # Filtro Brand
             if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            # Filtro Errori (Logica Colonna 3)
-            if scelta_errore == "Solo righe con ERRORI (Vuoti o Duplicati)":
+            # Filtro Errori Ottimizzato
+            if scelta_errore == "Solo righe con ERRORI (Vuoti o Mancata Alternanza)":
                 df_filtrato = df_filtrato[righe_con_errori]
             elif scelta_errore == "Solo righe CORRETTE":
                 df_filtrato = df_filtrato[~righe_con_errori]
@@ -177,7 +196,6 @@ if file_caricato is not None:
         with tab_metriche:
             st.subheader("Panoramica Rapida dell'Assegno")
 
-            # Calcolo di metriche al volo per dare utilità alla maschera
             tot_rilevazioni = len(df)
             brand_unici = df["Brand"].nunique()
             partite_totali = df["Partita"].nunique()
