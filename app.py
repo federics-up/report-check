@@ -1,20 +1,18 @@
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo
+# Configurazione della pagina largo con il nuovo nome ufficiale ALFREDO
 st.set_page_config(
-    page_title="Validatore Brand Eurolega", page_icon="🎮", layout="wide"
+    page_title="Alfredo - Validatore Brand", page_icon="🎮", layout="wide"
 )
 
 
 # --- FUNZIONE PER CAMBIARE LO SFONDO IN PIXEL ART IN BASE ALLO SPORT ---
 def applica_sfondo_sport_pixel(dataframe):
-    # Uniamo tutti i testi delle partite per capire lo sport prevalente nel file
     testo_partite = (
         " ".join(dataframe["Partita"].astype(str).dropna().unique()).lower()
     )
 
-    # Parole chiave per identificare lo sport
     parole_basket = [
         "bologna",
         "madrid",
@@ -34,8 +32,6 @@ def applica_sfondo_sport_pixel(dataframe):
     parole_calcio = ["milan", "inter", "juventus", "roma", "lazio", "napoli", "fcalcio"]
 
     if any(parola in testo_partite for parola in parole_basket):
-        # --- STILE BASKET PIXEL ART ---
-        # Sfondo arancione con pattern geometrico pixelato di palloni da basket + giocatore fisso in basso a destra
         st.markdown(
             """
             <style>
@@ -46,7 +42,6 @@ def applica_sfondo_sport_pixel(dataframe):
                 background-size: 40px 40px;
                 background-position: 0 0, 20px 20px;
             }
-            /* Inserimento del giocatore di basket in pixel art nell'angolo */
             .stApp::after {
                 content: "🏀🕺\\A 🏃‍♂️💨";
                 white-space: pre;
@@ -73,8 +68,6 @@ def applica_sfondo_sport_pixel(dataframe):
         st.sidebar.markdown("🏀 **Sport: PALLACANESTRO (8-BIT)**")
 
     elif any(parola in testo_partite for parola in parole_calcio):
-        # --- STILE CALCIO PIXEL ART ---
-        # Sfondo verde stadio con pattern di palloni da calcio pixelati + calciatore in basso a destra
         st.markdown(
             """
             <style>
@@ -85,7 +78,6 @@ def applica_sfondo_sport_pixel(dataframe):
                 background-size: 60px 60px;
                 background-position: 0 0, 30px 30px;
             }
-            /* Inserimento del calciatore in pixel art nell'angolo */
             .stApp::after {
                 content: "⚽🏃‍♂️\\A      🧱🧤";
                 white-space: pre;
@@ -112,7 +104,6 @@ def applica_sfondo_sport_pixel(dataframe):
         st.sidebar.markdown("⚽ **Sport: CALCIO (8-BIT)**")
 
     else:
-        # --- STILE NEUTRO DI DEFAULT ---
         st.markdown(
             """
             <style>
@@ -126,7 +117,7 @@ def applica_sfondo_sport_pixel(dataframe):
 
 
 # --- INTERFACCIA GRAFICA ---
-st.title("ALFREDO")
+st.title("🕹️ Alfredo - Pixel Sports Edition")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
@@ -162,6 +153,9 @@ if file_caricato is not None:
         st.toast(f"File '{file_caricato.name}' caricato!", icon="🎮")
 
         # ATTIVAZIONE DELLO SFONDO DINAMICO PIXEL ART
+        applica_sofndo_sport_pixel = applica_sfondo_sport_pixel(
+            df
+        )  # Correzione chiamata interna se necessario
         applica_sfondo_sport_pixel(df)
 
         # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
@@ -268,9 +262,6 @@ if file_caricato is not None:
             df_filtrato = df.copy()
             if scelta_emittente != "Tutte":
                 df_filtrato = df_filtrato[
-                    df_filtrato["Emittente"] == choix_emittente
-                ]  # correzione interna per sicurezza
-                df_filtrato = df_filtrato[
                     df_filtrato["Emittente"] == scelta_emittente
                 ]
             if scelta_brand != "Tutti":
@@ -285,3 +276,17 @@ if file_caricato is not None:
                 df_filtrato = df_filtrato[~righe_con_errori]
 
             st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
+            st.dataframe(df_filtrato, use_container_width=True)
+
+        # --- TAB 3: NUMERI CHIAVE ---
+        with tab_metriche:
+            st.subheader("Panoramica Rapida dell'Assegno")
+            tot_rilevazioni = len(df)
+            brand_unici = df["Brand"].nunique()
+
+            m1, m2 = st.columns(2)
+            m1.metric("Totale Rilevazioni (Righe)", f"{tot_rilevazioni:,}")
+            m2.metric("Marchi Monitorati", brand_unici)
+
+    except Exception as e:
+        st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
