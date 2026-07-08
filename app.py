@@ -6,7 +6,7 @@ st.set_page_config(
     page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
 )
 
-st.title("📊 Validatore Dati Esposizione Brand")
+st.title("ALFREDO")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
