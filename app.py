@@ -7,9 +7,28 @@ st.set_page_config(
     page_title="ALFREDO", page_icon="📊", layout="wide"
 )
 
-# Applica uno sfondo grigio neutro fisso e professionale
+# Applica l'esatto colore di sfondo scuro aziendale e adatta i testi in bianco
 st.markdown(
-    "<style>.stApp { background-color: #f5f5f5; }</style>",
+    """
+    <style>
+    .stApp {
+        background-color: #131924;
+    }
+    h1, h2, h3, p, label, .stMarkdown, .stTabs button {
+        color: #ffffff !important;
+    }
+    .stTabs button[aria-selected="true"] {
+        color: #131924 !important;
+        background-color: white !important;
+    }
+    /* Riquadro di caricamento file più visibile sullo sfondo scuro */
+    .stFileUploader {
+        background-color: #1c2436;
+        padding: 10px;
+        border-radius: 10px;
+    }
+    </style>
+    """,
     unsafe_allow_html=True,
 )
 
@@ -69,18 +88,25 @@ def converti_df_in_excel(df_da_convertire):
 # ==============================================================================
 # BARRA LATERALE - SELEZIONE DELLO SPORT (LE DUE PAGINE SEPARATE)
 # ==============================================================================
-st.sidebar.title("🎮 ALFREDO MENU")
+st.sidebar.title("📊 ALFREDO MENU")
 st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
 sport_selezionato = st.sidebar.radio(
     "Scegli la sezione:",
-    ["🏀 Basket (Eurolega)", "⚽ Calcio (Serie A / Estero)"]
+    ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)"]
 )
 
 # ==============================================================================
-# SEZIONE 1: BASKET (LOGICA ORIGINALE RIPARTENDO DA QUI)
+# INTRODUZIONE LOGO AZIENDALE IN ALTRA DEFINIZIONE
+# ==============================================================================
+# Utilizziamo l'URL dell'immagine caricata per proiettare il banner grafico ufficiale
+st.image("https://googleapis.com", width=350)
+st.markdown("---")
+
+# ==============================================================================
+# SEZIONE 1: BASKET (LOGICA ORIGINALE)
 # ==============================================================================
 if sport_selezionato == "🏀 Basket (Eurolega)":
-    st.title("ALFREDO - Sezione Basket 🏀")
+    st.subheader("Sezione Basket 🏀")
     st.markdown("Carica i file di monitoraggio dell'Eurolega. È attiva la verifica rigida dei duplicati specchio.")
     
     file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Basket", type=["xlsx", "xls", "csv"], key="basket_file")
@@ -102,7 +128,7 @@ if sport_selezionato == "🏀 Basket (Eurolega)":
                 for c in colonne_mancanti: st.markdown(f"- **{c}**")
                 st.stop()
                 
-            # LOGICA CONTROLLO DOPPIONI BASKET (Quella corretta e verificata)
+            # LOGICA CONTROLLO DOPPIONI BASKET
             colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"]
             colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
             
@@ -153,26 +179,23 @@ if sport_selezionato == "🏀 Basket (Eurolega)":
             st.error(f"❌ Errore elaborazione Basket: {e}")
 
 # ==============================================================================
-# SEZIONE 2: CALCIO (NUOVA PAGINA DEDICATA E ISOLATA)
+# SEZIONE 2: CALCIO (PAGINA DEDICATA E ISOLATA)
 # ==============================================================================
 else:
-    st.title("ALFREDO - Sezione Calcio ⚽")
-    st.markdown("Carica i file di monitoraggio del Calcio. È attiva la verifica con i sinonimi dedicati alla Serie A e campionati esteri.")
+    st.subheader("Sezione Calcio ⚽")
+    st.markdown("Carica i file del Calcio (Serie A / Estero / DAZN). Il controllo dei duplicati specchio è disattivato.")
     
-    file_caricato_calcio = st.file_uploader("📂 Trascina qui il file Excel o CSV del Calcio", type=["xlsx", "xls", "csv"], key="calcio_file")
+    file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Calcio", type=["xlsx", "xls", "csv"], key="calcio_file")
     
-    if file_caricato_calcio is not None:
+    if file_caricato is not None:
         try:
-            # Lettura del file in base all'estensione
-            df_grezzo = pd.read_csv(file_caricato_calcio) if file_caricato_calcio.name.endswith(".csv") else pd.read_excel(file_caricato_calcio)
+            df_grezzo = pd.read_csv(file_caricato) if file_caricato.name.endswith(".csv") else pd.read_excel(file_caricato)
             st.toast("File Calcio caricato!", icon="⚽")
             
-            # Normalizzazione colonne con sinonimi specifici del calcio
             df = normalizza_colonne(df_grezzo, sinonimi_calcio)
             colonne_presenti = df.columns.tolist()
             
-            # Controllo colonne obbligatorie calcio
-            campi_obbligatori = list(sinonimi_calcio.keys())
+            campi_obbligatori = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
             colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
             
             if colonne_mancanti:
