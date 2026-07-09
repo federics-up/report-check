@@ -14,7 +14,6 @@ st.markdown(
 )
 
 # --- DIZIONARIO DEI SINONIMI UNIVERSALE (BASKET + CALCIO + SERIE A ESTERO) ---
-# Include le varianti troncate, le parentesi asimmetriche e i refusi tipici delle esportazioni
 mappa_sinonimi = {
     "Emittente": ["emittente", "canale", "tv", "broadcaster", "network", "channel", "dazn", "sky"],
     "Giornata": ["giornata", "turno", "round", "week", "matchday"],
@@ -34,7 +33,7 @@ mappa_sinonimi = {
     "tipo": ["tipo", "type", "formato", "format"],
     "sec_to_time(dmm.durata)": [
         "sec_to_time(dmm.durata)",
-        "ec_to_time(dmm.durata",             # Intercetta la parentesi non chiusa del file Serie A Estero
+        "ec_to_time(dmm.durata",             
         "sec_to_time(dmm.durata area totale",
         "durata",
         "duration",
@@ -45,12 +44,12 @@ mappa_sinonimi = {
         "area media per sec", 
         "area media", 
         "average area", 
-        "area media per sec schermo media per se" # Intercetta la colonna combinata
+        "area media per sec schermo media per se" 
     ],
     "% Schermo Media Per Sec": [
         "% schermo media per sec",
         "schermo media per se",
-        "per sec% schermo media per se",       # Nuova variante presente nel file Serie A Estero
+        "per sec% schermo media per se",       
         "percentuale schermo",
         "% schermo",
         "screen_%",
@@ -66,7 +65,6 @@ def normalizza_colonne(dataframe):
 
     for col_ufficiale, sinonimi in mappa_sinonimi.items():
         for col_presente in colonne_presenti:
-            # Controllo flessibile: verifica se il sinonimo è contenuto nel nome della colonna reale
             nome_col_pulito = str(col_presente).strip().lower()
             if any(s.lower() in nome_col_pulito for s in sinonimi):
                 nuovo_mapping[col_presente] = col_ufficiale
@@ -111,12 +109,10 @@ if file_caricato is not None:
         colonne_presenti = df.columns.tolist()
 
         # --- LOGICA DI CONTROLLO QUALITÀ COMPRENSIVA ---
-        # Identifichiamo i campi chiave realmente presenti nel file normalizzato
         campi_chiave_presenti = [
             c for c in ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"] if c in colonne_presenti
         ]
         
-        # Rilevamento delle righe che presentano celle vuote (mancanti) nei campi portanti
         righe_con_vuoti = (
             df[campi_chiave_presenti].isnull().any(axis=1)
             if campi_chiave_presenti
@@ -132,7 +128,6 @@ if file_caricato is not None:
         with tab_verifica:
             st.subheader("Rapporto di Controllo Qualità")
 
-            # 1. Verifica Struttura e Integrità Campi
             colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
 
             if colonne_mancanti:
@@ -148,7 +143,6 @@ if file_caricato is not None:
                     "✅ **Struttura Dati:** Superata. Tutte le didascalie richieste sono state mappate e uniformate correttamente."
                 )
 
-            # 2. Verifica Celle Vuote / Dati Mancanti nei Campi Chiave
             totale_vuoti = df[campi_chiave_presenti].isnull().sum().sum() if campi_chiave_presenti else 0
             if totale_vuoti > 0:
                 st.warning(
@@ -171,19 +165,16 @@ if file_caricato is not None:
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                # Canale TV / Emittente
                 emittenti_disponibili = ["Tutte"]
                 if "Emittente" in colonne_presenti:
                     emittenti_disponibili += sorted(df["Emittente"].dropna().unique().tolist())
                 scelta_emittente = st.selectbox("Filtra per Emittente", emittenti_disponibili)
             with col2:
-                # Marchio / Brand
                 brand_disponibili = ["Tutti"]
                 if "Brand" in colonne_presenti:
                     brand_disponibili += sorted(df["Brand"].dropna().unique().tolist())
                 scelta_brand = st.selectbox("Filtra per Marchio (Brand)", brand_disponibili)
             with col3:
-                # Stato Anomalia
                 scelta_stato = st.selectbox(
                     "Filtra per stato dati",
                     [
@@ -193,7 +184,6 @@ if file_caricato is not None:
                     ],
                 )
 
-            # Applicazione dei filtri sul DataFrame finale
             df_filtrato = df.copy()
             if scelta_emittente != "Tutte" and "Emittente" in colonne_presenti:
                 df_filtrato = df_filtrato[df_filtrato["Emittente"] == scelta_emittente]
@@ -208,7 +198,6 @@ if file_caricato is not None:
             st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
             st.dataframe(df_filtrato, use_container_width=True)
 
-            # --- TASTO DOWNLOAD EXCEL NORMALIZZATO ---
             st.markdown("---")
             st.subheader("📥 Esporta il file normalizzato")
             
@@ -216,7 +205,7 @@ if file_caricato is not None:
             st.download_button(
                 label="📁 Scarica Tabella Normalizzata in Excel",
                 data=excel_data,
-                file_name=f"validato_{file_caricato.name.split('.')[0] if '.' in file_caricato.name else 'file'}.xlsx",
+                file_name="Alfredo_Report_Cleaned.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
@@ -237,4 +226,7 @@ if file_caricato is not None:
                     st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
                 else:
                     st.metric("Audience AMR Massima", "N/D")
+
+    except Exception as e:
+        st.error(f"❌ Errore critico durante l'elaborazione del file: {e}")
 
