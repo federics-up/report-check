@@ -116,6 +116,7 @@ if st.session_state.sport_selezionato is None:
     for i, (chiave_sport, etichetta_bottone) in enumerate(dizionario_sport.items()):
         con_colonna = colonne[i % 4]
         with con_colonna:
+            # L'uso di on_click evita il loop grafico e previene la pagina bianca
             st.button(
                 etichetta_bottone, 
                 use_container_width=True, 
@@ -196,9 +197,3 @@ else:
                     st.dataframe(df_fil, use_container_width=True)
                     st.markdown("---")
                     excel_data = converti_df_in_excel(df_fil)
-                    st.download_button(label="📁 Scarica Report Basket Normalizzato", data=excel_data, file_name="Alfredo_Basket_Cleaned.xlsx")
-                    
-
-
-
-
