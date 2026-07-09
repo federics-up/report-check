@@ -2,9 +2,9 @@ import io
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo con il nome ufficiale ALFREDO (Solo ALFREDO)
+# Configurazione della pagina largo con il nome ufficiale ALFREDO
 st.set_page_config(
-    page_title="ALFREDO", page_icon="📊", layout="wide"
+    page_title="Alfredo - Validatore Brand", page_icon="📊", layout="wide"
 )
 
 # Applica uno sfondo grigio neutro fisso e professionale a tutta l'applicazione
@@ -113,28 +113,11 @@ if file_caricato is not None:
             c for c in ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"] if c in colonne_presenti
         ]
         
-        # 1. Rilevamento celle vuote
         righe_con_vuoti = (
             df[campi_chiave_presenti].isnull().any(axis=1)
             if campi_chiave_presenti
             else pd.Series([False] * len(df))
         )
-
-        # 2. Rilevamento Doppioni Specchio / Mancata Alternanza (Solo se esiste la colonna 'tipo')
-        doppione_basket = pd.Series([False] * len(df))
-        ha_colonna_tipo = "tipo" in colonne_presenti
-        
-        if ha_colonna_tipo:
-            colonne_controllo_doppione = [
-                "Data", "Detections_MxM_Id", "Placement", "Minuto", 
-                "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"
-            ]
-            colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
-            if len(colonne_effettive) > 4:
-                doppione_basket = df.duplicated(subset=colonne_effettive, keep=False)
-
-        # Unione degli errori in base al tipo di file
-        righe_con_errori = righe_con_vuoti | doppione_basket
 
         # Creazione della maschera organizzata a Schede (Tab)
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
@@ -151,6 +134,7 @@ if file_caricato is not None:
                 st.error(
                     "❌ STRUTTURA FILE NON RICONOSCIUTA: Alcuni campi fondamentali non sono stati mappati."
                 )
+                st.write("Verifica che il file contenga colonne riconducibili a:")
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
                 st.stop()
@@ -173,21 +157,7 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessun valore mancante rilevato nei campi chiave portanti."
                 )
 
-            # Esito specifico per i duplicati Basket / Eurolega
-            if ha_colonna_tipo:
-                num_doppioni = doppione_basket.sum()
-                if num_doppioni > 0:
-                    st.error(
-                        f"🚨 **ALLARME RIGHE DUPLICATE (BASKET):** Trovati **{num_doppioni}** meri doppioni specchio contigui! La logica text/logo ha rilevato anomalie di inserimento."
-                    )
-                else:
-                    st.success(
-                        "✅ **Univocità Rilevazioni (Basket):** Superata. Nessuna riga presenta duplicati specchio nell'alternanza dei posizionamenti."
-                    )
-            else:
-                st.info("ℹ️ **Modalità Calcio/Serie A attiva:** Controllo duplicati specchio ignorato per questo formato di file.")
-
-            st.success("✅ **Analisi Coerenza:** Completata. I tracciamenti sono pronti per l'esportazione.")
+            st.success("✅ **Analisi Coerenza:** Completata. I tracciamenti per secondo e posizionamento sono pronti per l'esportazione.")
 
         # --- TAB 2: ESPLORA E ESPORTA ---
         with tab_esplora:
@@ -209,7 +179,7 @@ if file_caricato is not None:
                     "Filtra per stato dati",
                     [
                         "Mostra tutti i dati",
-                        "Solo righe con ERRORI (Vuoti o Doppioni Contigui)",
+                        "Solo righe con campi vuoti (Anomalie)",
                         "Solo righe complete (Corrette)",
                     ],
                 )
@@ -220,13 +190,42 @@ if file_caricato is not None:
             if scelta_brand != "Tutti" and "Brand" in colonne_presenti:
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            if scelta_stato == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)":
-                df_filtrato = df_filtrato[righe_con_errori]
+            if scelta_stato == "Solo righe con campi vuoti (Anomalie)":
+                df_filtrato = df_filtrato[righe_con_vuoti]
             elif scelta_stato == "Solo righe complete (Corrette)":
-                df_filtrato = df_filtrato[~righe_con_vuoti] if not ha_colonna_tipo else df_filtrato[~righe_con_errori]
+                df_filtrato = df_filtrato[~righe_con_vuoti]
 
             st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
             st.dataframe(df_filtrato, use_container_width=True)
 
             st.markdown("---")
             st.subheader("📥 Esporta il file normalizzato")
+            
+            excel_data = converti_df_in_excel(df_filtrato)
+            st.download_button(
+                label="📁 Scarica Tabella Normalizzata in Excel",
+                data=excel_data,
+                file_name="Alfredo_Report_Cleaned.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+
+        # --- TAB 3: NUMERI CHIAVE ---
+        with tab_metriche:
+            st.subheader("Metriche e Indicatori Principali")
+            
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                st.metric("Totale Record Analizzati", f"{len(df):,}")
+            with m2:
+                if "Brand" in colonne_presenti:
+                    st.metric("Brand Unici Rilevati", df["Brand"].nunique())
+                else:
+                    st.metric("Brand Unici Rilevati", "N/D")
+            with m3:
+                if "Audience_AMR" in colonne_presenti:
+                    st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
+                else:
+                    st.metric("Audience AMR Massima", "N/D")
+
+    except Exception as e:
+        st.error(f"❌ Errore critico durante l'elaborazione del file: {e}")
