@@ -129,7 +129,6 @@ if file_caricato is not None:
                 "Data", "Detections_MxM_Id", "Placement", "Minuto", 
                 "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"
             ]
-            # Verifica se le colonne necessarie al controllo doppioni sono presenti
             colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
             if len(colonne_effettive) > 4:
                 doppione_basket = df.duplicated(subset=colonne_effettive, keep=False)
@@ -152,7 +151,6 @@ if file_caricato is not None:
                 st.error(
                     "❌ STRUTTURA FILE NON RICONOSCIUTA: Alcuni campi fondamentali non sono stati mappati."
                 )
-                st.write("Verifica che il file contenga colonne riconducibili a:")
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
                 st.stop()
@@ -236,3 +234,6 @@ if file_caricato is not None:
             excel_data = converti_df_in_excel(df_filtrato)
             st.download_button(
                 label="📁 Scarica Tabella Normalizzata in Excel",
+                data=excel_data,
+                file_name="Alfredo_Report_Cleaned.xlsx",
+
