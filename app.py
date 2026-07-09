@@ -13,8 +13,8 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- DIZIONARIO DEI SINONIMI UNIVERSALE (BASKET + CALCIO) ---
-# Include le varianti troncate e i refusi tipici delle esportazioni di entrambi i file
+# --- DIZIONARIO DEI SINONIMI UNIVERSALE (BASKET + CALCIO + SERIE A ESTERO) ---
+# Include le varianti troncate, le parentesi asimmetriche e i refusi tipici delle esportazioni
 mappa_sinonimi = {
     "Emittente": ["emittente", "canale", "tv", "broadcaster", "network", "channel", "dazn", "sky"],
     "Giornata": ["giornata", "turno", "round", "week", "matchday"],
@@ -34,17 +34,23 @@ mappa_sinonimi = {
     "tipo": ["tipo", "type", "formato", "format"],
     "sec_to_time(dmm.durata)": [
         "sec_to_time(dmm.durata)",
-        "ec_to_time(dmm.durata",
+        "ec_to_time(dmm.durata",             # Intercetta la parentesi non chiusa del file Serie A Estero
         "sec_to_time(dmm.durata area totale",
         "durata",
         "duration",
         "tempo",
     ],
     "Area Totale": ["area totale", "totale area", "total area", "area_tot", "area totale area media per sec"],
-    "Area Media Per Sec": ["area media per sec", "area media", "average area", "area media per sec schermo media per se"],
+    "Area Media Per Sec": [
+        "area media per sec", 
+        "area media", 
+        "average area", 
+        "area media per sec schermo media per se" # Intercetta la colonna combinata
+    ],
     "% Schermo Media Per Sec": [
         "% schermo media per sec",
         "schermo media per se",
+        "per sec% schermo media per se",       # Nuova variante presente nel file Serie A Estero
         "percentuale schermo",
         "% schermo",
         "screen_%",
@@ -67,6 +73,15 @@ def normalizza_colonne(dataframe):
                 break
 
     return dataframe.rename(columns=nuovo_mapping)
+
+
+# --- FUNZIONE DI CONVERSIONE PER IL DOWNLOAD IN EXCEL ---
+@st.cache_data
+def converti_df_in_excel(df_da_convertire):
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df_da_convertire.to_excel(writer, index=False, sheet_name='Dati_Normalizzati')
+    return output.getvalue()
 
 
 # --- INTERFACCIA PRINCIPALE ---
@@ -130,7 +145,7 @@ if file_caricato is not None:
                 st.stop()
             else:
                 st.success(
-                    "✅ **Struttura Dati:** Superata. Tutte le 14 didascalie richieste sono state mappate e uniformate correttamente."
+                    "✅ **Struttura Dati:** Superata. Tutte le didascalie richieste sono state mappate e uniformate correttamente."
                 )
 
             # 2. Verifica Celle Vuote / Dati Mancanti nei Campi Chiave
@@ -195,35 +210,29 @@ if file_caricato is not None:
 
             # --- TASTO DOWNLOAD EXCEL NORMALIZZATO ---
             st.markdown("---")
-            st.subheader("📥 Esporta Report Pulito")
+            st.subheader("📥 Esporta il file normalizzato")
             
-            # Generazione del file normalizzato ed eliminazione delle righe errate (vuote)
-            df_esportazione = df[~righe_con_vuoti]
-
-            towrite = io.BytesIO()
-            with pd.ExcelWriter(towrite, engine="openpyxl") as writer:
-                df_esportazione.to_excel(
-                    writer, index=False, sheet_name="Report_Normalizzato"
-                )
-            towrite.seek(0)
-
+            excel_data = converti_df_in_excel(df_filtrato)
             st.download_button(
-                label="🚀 Scarica il File Excel con didascalie uniformate e dati pronti",
-                data=towrite,
-                file_name=f"Alfredo_Report_Normalizzato.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                label="📁 Scarica Tabella Normalizzata in Excel",
+                data=excel_data,
+                file_name=f"validato_{file_caricato.name if '.' not in file_caricato.name else file_caricato.name.split('.')[0]}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
         # --- TAB 3: NUMERI CHIAVE ---
         with tab_metriche:
-            st.subheader("Panoramica Rapida del Tracciamento")
-            tot_rilevazioni = len(df)
-            brand_unici = df["Brand"].nunique() if "Brand" in colonne_presenti else 0
-
-            m1, m2 = st.columns(2)
-            m1.metric("Totale Righe Tracciate", f"{tot_rilevazioni:,}")
-            m2.metric("Marchi Monitorati nel File", brand_unici)
-
-    except Exception as e:
-        st.error(f"Errore imprevisto durante l'elaborazione del file: {e}")
+            st.subheader("Metriche e Indicatori Principali")
+            
+            m1, m2, m3 = st.columns(3)
+            with m1:
+                st.metric("Totale Record Analizzati", f"{len(df):,}")
+            with m2:
+                if "Brand" in colonne_presenti:
+                    st.metric("Brand Unici Rilevati", df["Brand"].nunique())
+                else:
+                    st.metric("Brand Unici Rilevati", "N/D")
+            with m3:
+                if "Audience_AMR" in colonne_presenti:
+                    st.metric("Audience AMR Massima", f"{df['Audience_AMR'].max():,}")
 
