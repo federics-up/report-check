@@ -2,7 +2,7 @@ import io
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo con il nome ufficiale ALFREDO
+# Configurazione della pagina largo con il nome ufficiale ALFREDO (Solo ALFREDO)
 st.set_page_config(
     page_title="ALFREDO", page_icon="📊", layout="wide"
 )
@@ -213,20 +213,35 @@ if file_caricato is not None:
         with tab_metriche:
             st.subheader("Metriche e Indicatori Principali")
             
-            m1, m2, m3 = st.columns(3)
-            with m1:
+            c1, c2 = st.columns(2)
+            with c1:
                 st.metric("Totale Record Analizzati", f"{len(df):,}")
-            with m2:
+            with c2:
                 if "Brand" in colonne_presenti:
                     st.metric("Brand Unici Rilevati", df["Brand"].nunique())
                 else:
                     st.metric("Brand Unici Rilevati", "N/D")
-            with m3:
-                if "Audience_AMR" in colonne_presenti:
-                    st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
+                    
+            st.markdown("### 📈 Focus Analisi Audience AMR")
+            
+            m1, m2, m3 = st.columns(3)
+            if "Audience_AMR" in colonne_presenti:
+                audience_pulita = df["Audience_AMR"].dropna()
+                
+                if not audience_pulita.empty:
+                    aud_massima = int(audience_pulita.max())
+                    aud_minima = int(audience_pulita.min())
+                    aud_media = int(audience_pulita.mean())
+                    
+                    with m1:
+                        st.metric("Audience AMR Più Alta (Massima)", f"{aud_massima:,}")
+                    with m2:
+                        st.metric("Audience AMR Più Bassa (Minima)", f"{aud_minima:,}")
+                    with m3:
+                        st.metric("Audience AMR Media", f"{aud_media:,}")
                 else:
-                    st.metric("Audience AMR Massima", "N/D")
-
-    except Exception as e:
-        st.error(f"❌ Errore critico durante l'elaborazione del file: {e}")
+                    with m1: st.metric("Audience AMR Più Alta (Massima)", "N/D")
+                    with m2: st.metric("Audience AMR Più Bassa (Minima)", "N/D")
+                    with m3: st.metric("Audience AMR Media", "N/D")
+        
 
