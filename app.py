@@ -236,5 +236,6 @@ if file_caricato is not None:
                 label="📁 Scarica Tabella Normalizzata in Excel",
                 data=excel_data,
                 file_name="Alfredo_Report_Cleaned.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
 
