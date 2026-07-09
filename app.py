@@ -4,7 +4,7 @@ import streamlit as st
 
 # Configurazione della pagina largo (Solo ALFREDO)
 st.set_page_config(
-    page_title="ALFREDO", page_icon="📊", layout="wide"
+    page_title="ALFREDO🤖", page_icon="📊", layout="wide"
 )
 
 # --- DIZIONARI DEI SINONIMI SPECIFICI ---
