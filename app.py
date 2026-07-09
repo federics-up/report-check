@@ -4,7 +4,7 @@ import streamlit as st
 
 # Configurazione della pagina largo con il nome ufficiale ALFREDO
 st.set_page_config(
-    page_title="Alfredo - Validatore Brand", page_icon="📊", layout="wide"
+    page_title="ALFREDO", page_icon="📊", layout="wide"
 )
 
 # Applica uno sfondo grigio neutro fisso e professionale a tutta l'applicazione
@@ -216,7 +216,7 @@ if file_caricato is not None:
             st.download_button(
                 label="📁 Scarica Tabella Normalizzata in Excel",
                 data=excel_data,
-                file_name=f"validato_{file_caricato.name if '.' not in file_caricato.name else file_caricato.name.split('.')[0]}.xlsx",
+                file_name=f"validato_{file_caricato.name.split('.')[0] if '.' in file_caricato.name else 'file'}.xlsx",
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
             )
 
@@ -234,5 +234,6 @@ if file_caricato is not None:
                     st.metric("Brand Unici Rilevati", "N/D")
             with m3:
                 if "Audience_AMR" in colonne_presenti:
-                    st.metric("Audience AMR Massima", f"{df['Audience_AMR'].max():,}")
+                    st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
+                else:
 
