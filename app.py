@@ -13,48 +13,39 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
-# --- DIZIONARIO DEI SINONIMI UNIVERSALE (BASKET + CALCIO + SERIE A ESTERO) ---
+# --- DIZIONARIO DEI SINONIMI PER L'ACCOGLIENZA DI ALTRI EXCEL ---
 mappa_sinonimi = {
-    "Emittente": ["emittente", "canale", "tv", "broadcaster", "network", "channel", "dazn", "sky"],
+    "Emittente": ["emittente", "canale", "tv", "broadcaster", "network", "channel"],
     "Giornata": ["giornata", "turno", "round", "week", "matchday"],
     "Partita": ["partita", "match", "evento", "game", "incontro"],
     "Brand": ["brand", "marchio", "azienda", "sponsor", "company"],
     "Data": ["data", "giorno", "date"],
     "Detections_MxM_Id": [
         "detections_mxm_id",
-        "detections_mxm_idminuto",
         "id_rilevazione",
         "detection_id",
         "id",
         "mxm_id",
     ],
-    "Minuto": ["minuto", "minute", "time_min", "ora", "orario"],
+    "Minuto": ["minuto", "minute", "time_min"],
     "Placement": ["placement", "posizionamento", "posizione", "location"],
     "tipo": ["tipo", "type", "formato", "format"],
     "sec_to_time(dmm.durata)": [
         "sec_to_time(dmm.durata)",
-        "ec_to_time(dmm.durata",             
-        "sec_to_time(dmm.durata area totale",
         "durata",
         "duration",
         "tempo",
+        "durata_secondi",
     ],
-    "Area Totale": ["area totale", "totale area", "total area", "area_tot", "area totale area media per sec"],
-    "Area Media Per Sec": [
-        "area media per sec", 
-        "area media", 
-        "average area", 
-        "area media per sec schermo media per se" 
-    ],
+    "Area Totale": ["area totale", "totale area", "total area", "area_tot"],
+    "Area Media Per Sec": ["area media per sec", "area media", "average area"],
     "% Schermo Media Per Sec": [
         "% schermo media per sec",
-        "schermo media per se",
-        "per sec% schermo media per se",       
         "percentuale schermo",
         "% schermo",
         "screen_%",
     ],
-    "Audience_AMR": ["audience_amr", "audience_am", "audience", "amr", "ascolti", "share_amr"],
+    "Audience_AMR": ["audience_amr", "audience", "amr", "ascolti", "share_amr"],
 }
 
 
@@ -65,27 +56,19 @@ def normalizza_colonne(dataframe):
 
     for col_ufficiale, sinonimi in mappa_sinonimi.items():
         for col_presente in colonne_presenti:
-            nome_col_pulito = str(col_presente).strip().lower()
-            if any(s.lower() in nome_col_pulito for s in sinonimi):
+            if str(col_presente).strip().lower() in [
+                s.lower() for s in sinonimi
+            ]:
                 nuovo_mapping[col_presente] = col_ufficiale
                 break
 
     return dataframe.rename(columns=nuovo_mapping)
 
 
-# --- FUNZIONE DI CONVERSIONE PER IL DOWNLOAD IN EXCEL ---
-@st.cache_data
-def converti_df_in_excel(df_da_convertire):
-    output = io.BytesIO()
-    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df_da_convertire.to_excel(writer, index=False, sheet_name='Dati_Normalizzati')
-    return output.getvalue()
-
-
 # --- INTERFACCIA PRINCIPALE ---
-st.title("ALFREDO")
+st.title("📊 Alfredo - Validatore Brand")
 st.markdown(
-    "Carica il file Excel o CSV (Basket o Calcio) per analizzare la correttezza dei dati di monitoraggio."
+    "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
 
 campi_obbligatori = list(mappa_sinonimi.keys())
@@ -96,30 +79,37 @@ file_caricato = st.file_uploader(
 
 if file_caricato is not None:
     try:
-        # Lettura del file caricato
         if file_caricato.name.endswith(".csv"):
             df_grezzo = pd.read_csv(file_caricato)
         else:
             df_grezzo = pd.read_excel(file_caricato)
 
-        st.toast(f"File '{file_caricato.name}' caricato con successo!", icon="📊")
+        st.toast(f"File '{file_caricato.name}' caricato!", icon="📊")
 
-        # NORMALIZZAZIONE INTELLIGENTE DELLE DIDASCALIE
+        # NORMALIZZAZIONE DELLE DIDASCALIE
         df = normalizza_colonne(df_grezzo)
-        colonne_presenti = df.columns.tolist()
 
-        # --- LOGICA DI CONTROLLO QUALITÀ COMPRENSIVA ---
-        campi_chiave_presenti = [
+        # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
+        colonne_presenti = df.columns.tolist()
+        colonne_controllo = [
+            c for c in campi_obbligatori if c in colonne_presenti and c != "Emittente"
+        ]
+
+        if len(colonne_controllo) > 3:
+            doppione_precedente = df.duplicated(subset=colonne_controllo, keep=False)
+        else:
+            doppione_precedente = pd.Series([False] * len(df))
+
+        campi_chiave_vuoti = [
             c for c in ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"] if c in colonne_presenti
         ]
-        
         righe_con_vuoti = (
-            df[campi_chiave_presenti].isnull().any(axis=1)
-            if campi_chiave_presenti
+            df[campi_chiave_vuoti].isnull().any(axis=1)
+            if campi_chiave_vuoti
             else pd.Series([False] * len(df))
         )
+        righe_con_errori = righe_con_vuoti | doppione_precedente
 
-        # Creazione della maschera organizzata a Schede (Tab)
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
             ["🔍 Esito della Verifica", "👀 Esplora la Tabella", "📈 Numeri Chiave"]
         )
@@ -132,32 +122,38 @@ if file_caricato is not None:
 
             if colonne_mancanti:
                 st.error(
-                    "❌ STRUTTURA FILE NON RICONOSCIUTA: Alcuni campi fondamentali non sono stati mappati."
+                    "❌ ERRORE CRITICO: La struttura del file non è riconosciuta!"
                 )
-                st.write("Verifica che il file contenga colonne riconducibili a:")
+                st.write(
+                    "Mancano colonne compatibili con le seguenti didascalie richieste:"
+                )
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
                 st.stop()
             else:
                 st.success(
-                    "✅ **Struttura Dati:** Superata. Tutte le didascalie richieste sono state mappate e uniformate correttamente."
+                    "✅ **Struttura Campi:** Traduzione completata! Tutte le 14 didascalie sono state associate correttamente."
                 )
 
-            totale_vuoti = df[campi_chiave_presenti].isnull().sum().sum() if campi_chiave_presenti else 0
+            totale_vuoti = df[campi_chiave_vuoti].isnull().sum().sum()
             if totale_vuoti > 0:
                 st.warning(
-                    f"⚠️ **Completezza Dati:** Rilevate celle vuote. Ci sono righe non compilate nei campi chiave importanti."
+                    f"⚠️ **Celle Vuote Rilevate:** Trovate righe non compilate."
                 )
-                for col in campi_chiave_presenti:
-                    qta_vuoti = df[col].isnull().sum()
-                    if qta_vuoti > 0:
-                        st.info(f"La colonna *{col}* ha **{qta_vuoti}** celle vuote da verificare.")
             else:
                 st.success(
-                    "✅ **Completezza Dati:** Superata. Nessun valore mancante rilevato nei campi chiave portanti."
+                    "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
                 )
 
-            st.success("✅ **Analisi Coerenza:** Completata. I tracciamenti per secondo e posizionamento sono pronti per l'esportazione.")
+            num_doppioni = doppione_precedente.sum()
+            if num_doppioni > 0:
+                st.error(
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati **{num_doppioni}** meri doppioni specchio contigui!"
+                )
+            else:
+                st.success(
+                    "✅ **Univocità Rilevazioni:** Superata. Nessuna riga presenta doppioni contigui."
+                )
 
         # --- TAB 2: ESPLORA E ESPORTA ---
         with tab_esplora:
@@ -165,67 +161,67 @@ if file_caricato is not None:
 
             col1, col2, col3 = st.columns(3)
             with col1:
-                emittenti_disponibili = ["Tutte"]
-                if "Emittente" in colonne_presenti:
-                    emittenti_disponibili += sorted(df["Emittente"].dropna().unique().tolist())
-                scelta_emittente = st.selectbox("Filtra per Emittente", emittenti_disponibili)
+                lista_emittenti = ["Tutte"] + sorted(
+                    df["Emittente"].dropna().unique().tolist()
+                )
+                scelta_emittente = st.selectbox(
+                    "Filtra per Canale TV", lista_emittenti
+                )
             with col2:
-                brand_disponibili = ["Tutti"]
-                if "Brand" in colonne_presenti:
-                    brand_disponibili += sorted(df["Brand"].dropna().unique().tolist())
-                scelta_brand = st.selectbox("Filtra per Marchio (Brand)", brand_disponibili)
+                lista_brand = ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist())
+                scelta_brand = st.selectbox("Filtra per Marchio", lista_brand)
             with col3:
-                scelta_stato = st.selectbox(
-                    "Filtra per stato dati",
+                scelta_errore = st.selectbox(
+                    "Filtra per stato errore",
                     [
                         "Mostra tutti i dati",
-                        "Solo righe con campi vuoti (Anomalie)",
-                        "Solo righe complete (Corrette)",
+                        "Solo righe con ERRORI (Vuoti o Doppioni Contigui)",
+                        "Solo righe CORRETTE",
                     ],
                 )
 
             df_filtrato = df.copy()
-            if scelta_emittente != "Tutte" and "Emittente" in colonne_presenti:
+            if scelta_emittente != "Tutte":
                 df_filtrato = df_filtrato[df_filtrato["Emittente"] == scelta_emittente]
-            if scelta_brand != "Tutti" and "Brand" in colonne_presenti:
+            if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            if scelta_stato == "Solo righe con campi vuoti (Anomalie)":
-                df_filtrato = df_filtrato[righe_con_vuoti]
-            elif scelta_stato == "Solo righe complete (Corrette)":
-                df_filtrato = df_filtrato[~righe_con_vuoti]
+            if scelta_errore == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)":
+                df_filtrato = df_filtrato[righe_con_errori]
+            elif scelta_errore == "Solo righe CORRETTE":
+                df_filtrato = df_filtrato[~righe_con_errori]
 
             st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
             st.dataframe(df_filtrato, use_container_width=True)
 
+            # --- TASTO DOWNLOAD EXCEL PULITO ---
             st.markdown("---")
-            st.subheader("📥 Esporta il file normalizzato")
-            
-            excel_data = converti_df_in_excel(df_filtrato)
+            st.subheader("📥 Esporta Report Corretto")
+            df_pulito_da_scaricare = df[~righe_con_errori]
+
+            towrite = io.BytesIO()
+            with pd.ExcelWriter(towrite, engine="openpyxl") as writer:
+                df_pulito_da_scaricare.to_excel(
+                    writer, index=False, sheet_name="Dati_Puliti"
+                )
+            towrite.seek(0)
+
             st.download_button(
-                label="📁 Scarica Tabella Normalizzata in Excel",
-                data=excel_data,
-                file_name="Alfredo_Report_Cleaned.xlsx",
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                label="🚀 Scarica il File Excel ripulito da tutti gli errori",
+                data=towrite,
+                file_name=f"Alfredo_Report_Cleaned.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             )
 
         # --- TAB 3: NUMERI CHIAVE ---
         with tab_metriche:
-            st.subheader("Metriche e Indicatori Principali")
-            
-            m1, m2, m3 = st.columns(3)
-            with m1:
-                st.metric("Totale Record Analizzati", f"{len(df):,}")
-            with m2:
-                if "Brand" in colonne_presenti:
-                    st.metric("Brand Unici Rilevati", df["Brand"].nunique())
-                else:
-                    st.metric("Brand Unici Rilevati", "N/D")
-            with m3:
-                if "Audience_AMR" in colonne_presenti:
-                    st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
-                else:
-                    st.metric("Audience AMR Massima", "N/D")
+            st.subheader("Panoramica Rapida dell'Assegno")
+            tot_rilevazioni = len(df)
+            brand_unici = df["Brand"].nunique()
+
+            m1, m2 = st.columns(2)
+            m1.metric("Totale Rilevazioni (Righe)", f"{tot_rilevazioni:,}")
+            m2.metric("Marchi Monitorati", brand_unici)
 
     except Exception as e:
-        st.error(f"❌ Errore critico durante l'elaborazione del file: {e}")
+        st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
