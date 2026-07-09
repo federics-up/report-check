@@ -243,4 +243,3 @@ if file_caricato is not None:
                     with m1: st.metric("Audience AMR Più Alta (Massima)", "N/D")
                     with m2: st.metric("Audience AMR Più Bassa (Minima)", "N/D")
                     with m3: st.metric("Audience AMR Media", "N/D")
- except Exception as e:st.error(f"❌ Errore critico durante l'elaborazione del file: {e}")else:st.info("👋 Benvenuto! Trascina un file Excel o CSV nel riquadro qui sopra per iniziare la validazione con Alfredo.")
