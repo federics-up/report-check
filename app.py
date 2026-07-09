@@ -113,7 +113,7 @@ if file_caricato is not None:
             c for c in ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"] if c in colonne_presenti
         ]
         
-        # 1. Rilevamento celle vuote
+        # 1. Rilevamento cells vuote
         righe_con_vuoti = (
             df[campi_chiave_presenti].isnull().any(axis=1)
             if campi_chiave_presenti
