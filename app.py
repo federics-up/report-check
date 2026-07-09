@@ -236,4 +236,5 @@ if file_caricato is not None:
                 if "Audience_AMR" in colonne_presenti:
                     st.metric("Audience AMR Massima", f"{int(df['Audience_AMR'].max()):,}")
                 else:
+                    st.metric("Audience AMR Massima", "N/D")
 
