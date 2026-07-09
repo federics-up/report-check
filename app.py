@@ -66,7 +66,7 @@ def normalizza_colonne(dataframe):
 
 
 # --- INTERFACCIA PRINCIPALE ---
-st.title("📊 Alfredo - Validatore Brand")
+st.title("ALFREDO")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
