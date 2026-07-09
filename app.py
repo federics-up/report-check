@@ -4,7 +4,7 @@ import streamlit as st
 
 # Configurazione della pagina largo (Solo ALFREDO)
 st.set_page_config(
-    page_title="ALFREDO🤖", page_icon="📊", layout="wide"
+    page_title="ALFREDO 🤖", page_icon="📊", layout="wide"
 )
 
 # --- DIZIONARI DEI SINONIMI SPECIFICI ---
@@ -25,10 +25,10 @@ sinonimi_basket = {
     "Audience_AMR": ["audience_amr", "audience"]
 }
 
-sinonimi_calcio = {
-    "Emittente": ["emittente", "canale", "tv", "broadcaster", "dazn"],
-    "Giornata": ["giornata", "turno", "round"],
-    "Partita": ["partita", "match", "evento"],
+sinonimi_generici = {
+    "Emittente": ["emittente", "canale", "tv", "broadcaster", "dazn", "sky"],
+    "Giornata": ["giornata", "turno", "round", "gara"],
+    "Partita": ["partita", "match", "evento", "incontro"],
     "Brand": ["brand", "marchio", "sponsor"],
     "Data": ["data", "giorno"],
     "Detections_MxM_Id": ["detections_mxm_id", "detections_mxm_idminuto", "id_rilevazione", "detection_id"],
@@ -42,7 +42,7 @@ sinonimi_calcio = {
     "Audience_AMR": ["audience_amr", "audience_am", "audience", "amr"]
 }
 
-# --- FUNZIONE DI NORMALIZZAZIONE ---
+# --- FUNZIONI DI SERVIZIO ---
 def normalizza_colonne(dataframe, mappa_sinonimi):
     colonne_presenti = dataframe.columns.tolist()
     nuovo_mapping = {}
@@ -60,164 +60,129 @@ def converti_df_in_excel(df_da_convertire):
         df_da_convertire.to_excel(writer, index=False, sheet_name='Dati_Normalizzati')
     return output.getvalue()
 
-# ==============================================================================
-# BARRA LATERALE - SELEZIONE DELLO SPORT (LE DUE PAGINE SEPARATE)
-# ==============================================================================
-st.sidebar.title("🎮 ALFREDO MENU")
-st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
-sport_selezionato = st.sidebar.radio(
-    "Scegli la sezione:",
-    ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)"]
-)
+# --- GESTIONE DELLO STATO DELLA PAGINA ---
+if "sport_selezionato" not in st.session_state:
+    st.session_state.sport_selezionato = None
+
+# Mappa degli sport con le rispettive palle/emoji
+dizionario_sport = {
+    "🏀 Basket (Eurolega / LBA)": "🏀 Basket",
+    "⚽ Calcio (Serie A / Estero)": "⚽ Calcio",
+    "🏐 Pallavolo / Volley": "🏐 Volley",
+    "🎾 Tennis": "🎾 Tennis",
+    "🏎️ Motori (F1 / MotoGP)": "🏎️ Motori",
+    "🏈 Football Americano": "🏈 Football",
+    "🏉 Rugby": "🏉 Rugby",
+    "🏓 Tennis da Tavolo": "🏓 Ping Pong",
+    "🏸 Badminton": "🏸 Badminton",
+    "🏒 Hockey": "🏒 Hockey",
+    "🎯 Freccette": "🎯 Freccette",
+    "🥊 Sport da Combattimento": "🥊 Combattimento"
+}
 
 # ==============================================================================
-# SEZIONE 1: BASKET (LOGICA ORIGINALE RIPARTENDO DA QUI)
+# MENU INIZIALE A BOTTONI (SE NESSUNO SPORT È SELEZIONATO)
 # ==============================================================================
-if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
-    st.title("ALFREDO - Sezione Basket 🏀")
-    st.markdown("Carica i file di monitoraggio dell'Eurolega o della LBA. È attiva la verifica rigida dei duplicati specchio.")
+if st.session_state.sport_selezionato is None:
+    st.title("🤖 ALFREDO - Dashboard Principale")
+    st.markdown("### Seleziona la palla o l'icona dello sport per avviare l'analisi del report:")
+    st.write("")
+
+    # Creiamo una griglia di 4 colonne per disporre i bottoni in modo ordinato
+    colonne = st.columns(4)
     
-    file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Basket", type=["xlsx", "xls", "csv"], key="basket_file")
-    
-    if file_caricato is not None:
-        try:
-            df_grezzo = pd.read_csv(file_caricato) if file_caricato.name.endswith(".csv") else pd.read_excel(file_caricato)
-            st.toast("File Basket caricato!", icon="🏀")
-            
-            df = normalizza_colonne(df_grezzo, sinonimi_basket)
-            colonne_presenti = df.columns.tolist()
-            
-            # Controllo colonne obbligatorie basket
-            campi_obbligatori = list(sinonimi_basket.keys())
-            colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
-            
-            if colonne_mancanti:
-                st.error("❌ La struttura del file Basket non è corretta. Mancano:")
-                for c in colonne_mancanti: st.markdown(f"- **{c}**")
-                st.stop()
-                
-            # LOGICA CONTROLLO DOPPIONI BASKET (Quella corretta e verificata)
-            colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"]
-            colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
-            
-            doppione_basket = df.duplicated(subset=colonne_effettive, keep=False)
-            righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
-            righe_con_errori = righe_con_vuoti | doppione_basket
-            
-            tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
-            
-            with tab_ver:
-                st.subheader("Rapporto Qualità Basket")
-                st.success("✅ Struttura campi verificata con successo.")
-                
-                if df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().sum().sum() > 0:
-                    st.warning("⚠️ Rilevate celle vuote nei campi chiave.")
-                else:
-                    st.success("✅ Nessun valore mancante nei campi chiave.")
-                    
-                num_doppioni = doppione_basket.sum()
-                if num_doppioni > 0:
-                    st.error(f"🚨 **ALLARME RIGHE DUPLICATE (BASKET):** Trovati **{num_doppioni}** meri doppioni specchio contigui!")
-                else:
-                    st.success("✅ **Univocità Rilevazioni:** Superata. Nessun doppione specchio contiguo.")
-                    
-            with tab_esp:
-                col1, col2, col3 = st.columns(3)
-                with col1: scelta_emi = st.selectbox("Filtra Emittente", ["Tutte"] + sorted(df["Emittente"].dropna().unique().tolist()))
-                with col2: scelta_brd = st.selectbox("Filtra Marchio", ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist()))
-                with col3: scelta_err = st.selectbox("Filtra Errori", ["Mostra tutti", "Solo ERRORI (Vuoti o Doppioni)", "Solo CORRETTE"])
-                
-                df_fil = df.copy()
-                if scelta_emi != "Tutte": df_fil = df_fil[df_fil["Emittente"] == scelta_emi]
-                if scelta_brd != "Tutti": df_fil = df_fil[df_fil["Brand"] == scelta_brd]
-                if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
-                elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
-                
-                st.dataframe(df_fil, use_container_width=True)
-                st.markdown("---")
-                excel_data = converti_df_in_excel(df_fil)
-                st.download_button(label="📁 Scarica Report Basket Normalizzato", data=excel_data, file_name="Alfredo_Basket_Cleaned.xlsx")
-                
-            with tab_met:
-                st.subheader("Indicatori Basket")
-                st.metric("Totale Record Analizzati", f"{len(df):,}")
-                st.metric("Brand Rilevati", df["Brand"].nunique())
-                
-        except Exception as e:
-            st.error(f"❌ Errore elaborazione Basket: {e}")
+    # Cicliamo sugli sport per distribuirli nelle colonne
+    for i, (chiave_sport, etichetta_bottone) in enumerate(dizionario_sport.items()):
+        con_colonna = colonne[i % 4]
+        with con_colonna:
+            if st.button(etichetta_bottone, use_container_width=True, key=f"btn_{i}"):
+                st.session_state.sport_selezionato = chiave_sport
+                st.rerun()
 
 # ==============================================================================
-# SEZIONE 2: CALCIO (PAGINA DEDICATA E ISOLATA)
+# PAGINE DI ANALISI (SE UNO SPORT È STATO SELEZIONATO)
 # ==============================================================================
 else:
-    st.subheader("Sezione Calcio ⚽")
-    st.markdown("Carica i file del Calcio (Serie A / Estero / DAZN). Il controllo dei duplicati specchio è disattivato.")
+    sport_selezionato = st.session_state.sport_selezionato
+
+    # Barra laterale minimale solo per tornare indietro
+    st.sidebar.title("🤖 ALFREDO")
+    if st.sidebar.button("⬅️ Torna al Menu Principale"):
+        st.session_state.sport_selezionato = None
+        st.rerun()
     
-    file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Calcio", type=["xlsx", "xls", "csv"], key="calcio_file")
-    
-    if file_caricato is not None:
-        try:
-            df_grezzo = pd.read_csv(file_caricato) if file_caricato.name.endswith(".csv") else pd.read_excel(file_caricato)
-            st.toast("File Calcio caricato!", icon="⚽")
-            
-            df = normalizza_colonne(df_grezzo, sinonimi_calcio)
-            colonne_presenti = df.columns.tolist()
-            
-            campi_obbligatori = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
-            colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
-            
-            if colonne_mancanti:
-                st.error("❌ La struttura del file Calcio non è corretta. Mancano:")
-                for c in colonne_mancanti: st.markdown(f"- **{c}**")
-                st.stop()
+    st.sidebar.markdown(f"**Sezione attiva:**\n{sport_selezionato}")
+
+    # --------------------------------------------------------------------------
+    # SEZIONE 1: BASKET (LOGICA SPECIALE RIGIDA)
+    # --------------------------------------------------------------------------
+    if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
+        st.title("ALFREDO - Sezione Basket 🏀")
+        st.markdown("Carica i file di monitoraggio dell'Eurolega o della LBA. È attiva la verifica rigida dei duplicati specchio.")
+        
+        file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Basket", type=["xlsx", "xls", "csv"], key="basket_file")
+        
+        if file_caricato is not None:
+            try:
+                df_grezzo = pd.read_csv(file_caricato) if file_caricato.name.endswith(".csv") else pd.read_excel(file_caricato)
+                st.toast("File Basket caricato!", icon="🏀")
                 
-            # Logica controllo doppioni e vuoti per il Calcio
-            colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"]
-            colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
-            
-            doppione_calcio = df.duplicated(subset=colonne_effettive, keep=False)
-            righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
-            righe_con_errori = righe_con_vuoti | doppione_calcio
-            
-            # Interfaccia a Tab per il Calcio
-            tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
-            
-            with tab_ver:
-                st.subheader("Rapporto Qualità Calcio")
-                st.success("✅ Struttura campi verificata con successo.")
+                df = normalizza_colonne(df_grezzo, sinonimi_basket)
+                colonne_presenti = df.columns.tolist()
                 
-                if df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().sum().sum() > 0:
-                    st.warning("⚠️ Rilevate celle vuote nei campi chiave del Calcio.")
-                else:
-                    st.success("✅ Nessun valore mancante nei campi chiave.")
+                campi_obbligatori = list(sinonimi_basket.keys())
+                colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
+                
+                if colonne_mancanti:
+                    st.error("❌ La struttura del file Basket non è corretta. Mancano:")
+                    for c in colonne_mancanti: st.markdown(f"- **{c}**")
+                    st.stop()
                     
-                num_doppioni = doppione_calcio.sum()
-                if num_doppioni > 0:
-                    st.error(f"🚨 **ALLARME RIGHE DUPLICATE (CALCIO):** Trovati **{num_doppioni}** doppioni rilevati!")
-                else:
-                    st.success("✅ **Univocità Rilevazioni:** Superata. Nessun duplicato trovato.")
+                colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"]
+                colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
+                
+                doppione_basket = df.duplicated(subset=colonne_effettive, keep=False)
+                righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
+                righe_con_errori = righe_con_vuoti | doppione_basket
+                
+                tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
+                
+                with tab_ver:
+                    st.subheader("Rapporto Qualità Basket")
+                    st.success("✅ Struttura campi verificata con successo.")
                     
-            with tab_esp:
-                col1, col2, col3 = st.columns(3)
-                with col1: scelta_emi = st.selectbox("Filtra Emittente", ["Tutte"] + sorted(df["Emittente"].dropna().unique().tolist()))
-                with col2: scelta_brd = st.selectbox("Filtra Marchio", ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist()))
-                with col3: scelta_err = st.selectbox("Filtra Errori", ["Mostra tutti", "Solo ERRORI (Vuoti o Doppioni)", "Solo CORRETTE"])
-                
-                df_fil = df.copy()
-                if scelta_emi != "Tutte": df_fil = df_fil[df_fil["Emittente"] == scelta_emi]
-                if scelta_brd != "Tutti": df_fil = df_fil[df_fil["Brand"] == scelta_brd]
-                if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
-                elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
-                
-                st.dataframe(df_fil, use_container_width=True)
-                st.markdown("---")
-                excel_data = converti_df_in_excel(df_fil)
-                st.download_button(label="📁 Scarica Report Calcio Normalizzato", data=excel_data, file_name="Alfredo_Calcio_Cleaned.xlsx")
-                
-            with tab_met:
-                st.subheader("Indicatori Calcio")
-                st.metric("Totale Record Analizzati", f"{len(df):,}")
-                st.metric("Brand Rilevati", df["Brand"].nunique())
-                
-        except Exception as e:
-            st.error(f"❌ Errore elaborazione Calcio: {e}")
+                    if df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().sum().sum() > 0:
+                        st.warning("⚠️ Rilevate celle vuote nei campi chiave.")
+                    else:
+                        st.success("✅ Nessun valore mancante nei campi chiave.")
+                        
+                    num_doppioni = doppione_basket.sum()
+                    if num_doppioni > 0:
+                        st.error(f"🚨 **ALLARME RIGHE DUPLICATE (BASKET):** Trovati **{num_doppioni}** meri doppioni specchio contigui!")
+                    else:
+                        st.success("✅ **Univocità Rilevazioni:** Superata. Nessun doppione specchio contiguo.")
+                        
+                with tab_esp:
+                    col1, col2, col3 = st.columns(3)
+                    with col1: scelta_emi = st.selectbox("Filtra Emittente", ["Tutte"] + sorted(df["Emittente"].dropna().unique().tolist()))
+                    with col2: scelta_brd = st.selectbox("Filtra Marchio", ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist()))
+                    with col3: scelta_err = st.selectbox("Filtra Errori", ["Mostra tutti", "Solo ERRORI (Vuoti o Doppioni)", "Solo CORRETTE"])
+                    
+                    df_fil = df.copy()
+                    if scelta_emi != "Tutte": df_fil = df_fil[df_fil["Emittente"] == scelta_emi]
+                    if scelta_brd != "Tutti": df_fil = df_fil[df_fil["Brand"] == scelta_brd]
+                    if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
+                    elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
+                    
+                    st.dataframe(df_fil, use_container_width=True)
+                    st.markdown("---")
+                    excel_data = converti_df_in_excel(df_fil)
+                    st.download_button(label="📁 Scarica Report Basket Normalizzato", data=excel_data, file_name="Alfredo_Basket_Cleaned.xlsx")
+                    
+                with tab_met:
+                    st.subheader("Indicatori Basket")
+                    st.metric("Totale Record Analizzati", f"{len(df):,}")
+                    st.metric("Brand Rilevati", df["Brand"].nunique())
+                    
+            except Exception as e:
+                st.error(f"❌ Errore elaborazione Basket: {e}")
