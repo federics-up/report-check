@@ -244,4 +244,4 @@ if file_caricato is not None:
                     with m2: st.metric("Audience AMR Più Bassa (Minima)", "N/D")
                     with m3: st.metric("Audience AMR Media", "N/D")
         
-
+            else:
