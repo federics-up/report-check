@@ -182,4 +182,6 @@ else:
             
             # Interfaccia a Tab per il Calcio
             tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
-            
+
+
+
