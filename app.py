@@ -230,5 +230,3 @@ if file_caricato is not None:
 
             st.markdown("---")
             st.subheader("📥 Esporta il file normalizzato")
-            
-            
