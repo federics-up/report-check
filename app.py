@@ -7,31 +7,6 @@ st.set_page_config(
     page_title="ALFREDO", page_icon="📊", layout="wide"
 )
 
-# Applica l'esatto colore di sfondo scuro aziendale e adatta i testi in bianco
-st.markdown(
-    """
-    <style>
-    .stApp {
-        background-color: #131924;
-    }
-    h1, h2, h3, p, label, .stMarkdown, .stTabs button {
-        color: #ffffff !important;
-    }
-    .stTabs button[aria-selected="true"] {
-        color: #131924 !important;
-        background-color: white !important;
-    }
-    /* Riquadro di caricamento file più visibile sullo sfondo scuro */
-    .stFileUploader {
-        background-color: #1c2436;
-        padding: 10px;
-        border-radius: 10px;
-    }
-    </style>
-    """,
-    unsafe_allow_html=True,
-)
-
 # --- DIZIONARI DEI SINONIMI SPECIFICI ---
 sinonimi_basket = {
     "Emittente": ["emittente", "canale", "tv"],
@@ -88,7 +63,7 @@ def converti_df_in_excel(df_da_convertire):
 # ==============================================================================
 # BARRA LATERALE - SELEZIONE DELLO SPORT (LE DUE PAGINE SEPARATE)
 # ==============================================================================
-st.sidebar.title("📊 ALFREDO MENU")
+st.sidebar.title("🎮 ALFREDO MENU")
 st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
 sport_selezionato = st.sidebar.radio(
     "Scegli la sezione:",
@@ -96,18 +71,11 @@ sport_selezionato = st.sidebar.radio(
 )
 
 # ==============================================================================
-# INTRODUZIONE LOGO AZIENDALE IN ALTRA DEFINIZIONE
+# SEZIONE 1: BASKET (LOGICA ORIGINALE RIPARTENDO DA QUI)
 # ==============================================================================
-# Utilizziamo l'URL dell'immagine caricata per proiettare il banner grafico ufficiale
-st.image("https://googleapis.com", width=350)
-st.markdown("---")
-
-# ==============================================================================
-# SEZIONE 1: BASKET (LOGICA ORIGINALE)
-# ==============================================================================
-if sport_selezionato == "🏀 Basket (Eurolega)":
-    st.subheader("Sezione Basket 🏀")
-    st.markdown("Carica i file di monitoraggio dell'Eurolega. È attiva la verifica rigida dei duplicati specchio.")
+if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
+    st.title("ALFREDO - Sezione Basket 🏀")
+    st.markdown("Carica i file di monitoraggio dell'Eurolega o della LBA. È attiva la verifica rigida dei duplicati specchio.")
     
     file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Basket", type=["xlsx", "xls", "csv"], key="basket_file")
     
@@ -128,7 +96,7 @@ if sport_selezionato == "🏀 Basket (Eurolega)":
                 for c in colonne_mancanti: st.markdown(f"- **{c}**")
                 st.stop()
                 
-            # LOGICA CONTROLLO DOPPIONI BASKET
+            # LOGICA CONTROLLO DOPPIONI BASKET (Quella corretta e verificata)
             colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "tipo", "sec_to_time(dmm.durata)", "Area Totale", "Area Media Per Sec", "% Schermo Media Per Sec"]
             colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
             
