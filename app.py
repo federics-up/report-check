@@ -157,7 +157,7 @@ if file_caricato is not None:
                     "✅ **Completezza Dati:** Superata. Nessun valore mancante rilevato nei campi chiave portanti."
                 )
 
-            st.success("✅ **Analisi Coerenza:** Completata. I tracciamenti per second e posizionamento sono pronti per l'esportazione.")
+            st.success("✅ **Analisi Coerenza:** Completata. I tracciamenti per secondo e posizionamento sono pronti per l'esportazione.")
 
         # --- TAB 2: ESPLORA E ESPORTA ---
         with tab_esplora:
@@ -240,6 +240,9 @@ if file_caricato is not None:
                     with m3:
                         st.metric("Audience AMR Media", f"{aud_media:,}")
                 else:
-                    with m1: st.metric("Audience AMR Più Alta (Massima)", "N/D")
-                    with m2: st.metric("Audience AMR Più Bassa (Minima)", "N/D")
-                    with m3: st.metric("Audience AMR Media", "N/D")
+                    with m1:
+                        st.metric("Audience AMR Più Alta (Massima)", "N/D")
+                    with m2:
+                        st.metric("Audience AMR Più Bassa (Minima)", "N/D")
+                    with m3:
+
