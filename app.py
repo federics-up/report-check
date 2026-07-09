@@ -237,3 +237,4 @@ if file_caricato is not None:
                 data=excel_data,
                 file_name="Alfredo_Report_Cleaned.xlsx",
 
+
