@@ -235,4 +235,4 @@ if file_caricato is not None:
             st.download_button(
                 label="📁 Scarica Tabella Normalizzata in Excel",
                 data=excel_data,
-                file_name="Alfredo_Report_Cleaned.xlsx"
+                file_name="Alfredo_Report_Cleaned.xlsx")
