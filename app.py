@@ -1,113 +1,77 @@
+import io
 import pandas as pd
 import streamlit as st
 
-# Configurazione della pagina largo
+# Configurazione della pagina largo con il nome ufficiale ALFREDO
 st.set_page_config(
-    page_title="Validatore Brand Eurolega", page_icon="📊", layout="wide"
+    page_title="ALFREDO", page_icon="📊", layout="wide"
 )
 
+# Applica uno sfondo grigio neutro fisso e professionale a tutta l'applicazione
+st.markdown(
+    "<style>.stApp { background-color: #f5f5f5; }</style>",
+    unsafe_allow_html=True,
+)
 
-# --- FUNZIONE PER CAMBIARE LO SFONDO IN BASE ALLO SPORT ---
-def applica_sfondo_sport(dataframe):
-    # Uniamo tutti i testi delle partite per capire lo sport prevalente nel file
-    testo_partite = (
-        " ".join(dataframe["Partita"].astype(str).dropna().unique()).lower()
-    )
-
-    # Parole chiave per identificare lo sport
-    parole_basket = [
-        "bologna",
-        "madrid",
-        "monaco",
-        "atene",
-        "istanbul",
-        "tel aviv",
-        "milano",
-        "kaunas",
-        "belgrado",
-        "barcelona",
-        "valencia",
-        "munich",
-        "baskonia",
-        "basket",
-    ]
-    parole_calcio = ["milan", "inter", "juventus", "roma", "lazio", "napoli", "fcalcio"]
-
-    # Verifica lo sport e imposta i colori CSS dedicati
-    if any(parola in testo_partite for parola in parole_basket):
-        # STILE BASKET: Sfondo sfumato arancione/parquet e testi scuri leggibili
-        st.markdown(
-            """
-            <style>
-            .stApp {
-                background: linear-gradient(135deg, #ff9e43 0%, #e65c00 100%);
-            }
-            h1, p, label, .stMarkdown, .stTabs button {
-                color: #ffffff !important;
-            }
-            .stTabs button[aria-selected="true"] {
-                color: #ff9e43 !important;
-                background-color: white !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.sidebar.markdown("🏀 **Sport Rilevato: PALLACANESTRO**")
-
-    elif any(parola in testo_partite for parola in parole_calcio):
-        # STILE CALCIO: Sfondo sfumato verde erba/stadio
-        st.markdown(
-            """
-            <style>
-            .stApp {
-                background: linear-gradient(135deg, #a8ff78 0%, #78ffd6 100%);
-            }
-            h1, p, label, .stMarkdown, .stTabs button {
-                color: #1e3d2f !important;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
-        st.sidebar.markdown("⚽ **Sport Rilevato: CALCIO**")
-
-    else:
-        # STILE GRIGIO NEUTRO DI DEFAULT
-        st.markdown(
-            """
-            <style>
-            .stApp {
-                background-color: #f5f5f5;
-            }
-            </style>
-            """,
-            unsafe_allow_html=True,
-        )
+# --- DIZIONARIO DEI SINONIMI PER L'ACCOGLIENZA DI ALTRI EXCEL ---
+mappa_sinonimi = {
+    "Emittente": ["emittente", "canale", "tv", "broadcaster", "network", "channel"],
+    "Giornata": ["giornata", "turno", "round", "week", "matchday"],
+    "Partita": ["partita", "match", "evento", "game", "incontro"],
+    "Brand": ["brand", "marchio", "azienda", "sponsor", "company"],
+    "Data": ["data", "giorno", "date"],
+    "Detections_MxM_Id": [
+        "detections_mxm_id",
+        "id_rilevazione",
+        "detection_id",
+        "id",
+        "mxm_id",
+    ],
+    "Minuto": ["minuto", "minute", "time_min"],
+    "Placement": ["placement", "posizionamento", "posizione", "location"],
+    "tipo": ["tipo", "type", "formato", "format"],
+    "sec_to_time(dmm.durata)": [
+        "sec_to_time(dmm.durata)",
+        "durata",
+        "duration",
+        "tempo",
+        "durata_secondi",
+    ],
+    "Area Totale": ["area totale", "totale area", "total area", "area_tot"],
+    "Area Media Per Sec": ["area media per sec", "area media", "average area"],
+    "% Schermo Media Per Sec": [
+        "% schermo media per sec",
+        "percentuale schermo",
+        "% schermo",
+        "screen_%",
+    ],
+    "Audience_AMR": ["audience_amr", "audience", "amr", "ascolti", "share_amr"],
+}
 
 
-# --- INTERFACCIA GRAFICA ---
-st.title("AFREDO")
+# --- FUNZIONE DI NORMALIZZAZIONE AUTOMATICA DELLE COLONNE ---
+def normalizza_colonne(dataframe):
+    colonne_presenti = dataframe.columns.tolist()
+    nuovo_mapping = {}
+
+    for col_ufficiale, sinonimi in mappa_sinonimi.items():
+        for col_presente in colonne_presenti:
+            if str(col_presente).strip().lower() in [
+                s.lower() for s in sinonimi
+            ]:
+                nuovo_mapping[col_presente] = col_ufficiale
+                break
+
+    return dataframe.rename(columns=nuovo_mapping)
+
+
+# --- INTERFACCIA PRINCIPALE ---
+st.title("📊 Alfredo - Validatore Brand")
 st.markdown(
     "Carica il file Excel o CSV per analizzare la correttezza dei dati di monitoraggio."
 )
 
-campi_obbligatori = [
-    "Emittente",
-    "Giornata",
-    "Partita",
-    "Brand",
-    "Data",
-    "Detections_MxM_Id",
-    "Minuto",
-    "Placement",
-    "tipo",
-    "sec_to_time(dmm.durata)",
-    "Area Totale",
-    "Area Media Per Sec",
-    "% Schermo Media Per Sec",
-    "Audience_AMR",
-]
+campi_obbligatori = list(mappa_sinonimi.keys())
 
 file_caricato = st.file_uploader(
     "📂 Trascina qui il file Excel (.xlsx) o CSV", type=["xlsx", "xls", "csv"]
@@ -116,33 +80,34 @@ file_caricato = st.file_uploader(
 if file_caricato is not None:
     try:
         if file_caricato.name.endswith(".csv"):
-            df = pd.read_csv(file_caricato)
+            df_grezzo = pd.read_csv(file_caricato)
         else:
-            df = pd.read_excel(file_caricato)
+            df_grezzo = pd.read_excel(file_caricato)
 
-        st.toast(f"File '{file_caricato.name}' caricato!", icon="✅")
+        st.toast(f"File '{file_caricato.name}' caricato!", icon="📊")
 
-        # ATTIVAZIONE DELLO SFONDO DINAMICO
-        applica_sfondo_sport(df)
+        # NORMALIZZAZIONE DELLE DIDASCALIE
+        df = normalizza_colonne(df_grezzo)
 
         # --- LOGICA ALLARME DOPPIONE CONTIGUO ---
-        colonne_controllo_doppione = [
-            "Data",
-            "Detections_MxM_Id",
-            "Placement",
-            "Minuto",
-            "tipo",
-            "sec_to_time(dmm.durata)",
-            "Area Totale",
-            "Area Media Per Sec",
-            "% Schermo Media Per Sec",
+        colonne_presenti = df.columns.tolist()
+        colonne_controllo = [
+            c for c in campi_obbligatori if c in colonne_presenti and c != "Emittente"
         ]
-        doppione_precedente = df.duplicated(
-            subset=colonne_controllo_doppione, keep=False
-        )
 
-        campi_chiave_vuoti = ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]
-        righe_con_vuoti = df[campi_chiave_vuoti].isnull().any(axis=1)
+        if len(colonne_controllo) > 3:
+            doppione_precedente = df.duplicated(subset=colonne_controllo, keep=False)
+        else:
+            doppione_precedente = pd.Series([False] * len(df))
+
+        campi_chiave_vuoti = [
+            c for c in ["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"] if c in colonne_presenti
+        ]
+        righe_con_vuoti = (
+            df[campi_chiave_vuoti].isnull().any(axis=1)
+            if campi_chiave_vuoti
+            else pd.Series([False] * len(df))
+        )
         righe_con_errori = righe_con_vuoti | doppione_precedente
 
         tab_verifica, tab_esplora, tab_metriche = st.tabs(
@@ -153,35 +118,28 @@ if file_caricato is not None:
         with tab_verifica:
             st.subheader("Rapporto di Controllo Qualità")
 
-            colonne_presenti = df.columns.tolist()
-            colonne_mancanti = [
-                c for c in campi_obbligatori if c not in colonne_presenti
-            ]
+            colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
 
             if colonne_mancanti:
                 st.error(
-                    "❌ ERRORE CRITICO: La struttura del file non è corretta!"
+                    "❌ ERRORE CRITICO: La struttura del file non è riconosciuta!"
+                )
+                st.write(
+                    "Mancano colonne compatibili con le seguenti didascalie richieste:"
                 )
                 for c in colonne_mancanti:
                     st.markdown(f"- **{c}**")
                 st.stop()
             else:
                 st.success(
-                    "✅ **Struttura Campi:** Superata. Tutti i 14 campi imprescindibili sono presenti."
+                    "✅ **Struttura Campi:** Traduzione completata! Tutte le 14 didascalie sono state associate correttamente."
                 )
 
-            vuoti_per_colonna = {
-                col: df[col].isnull().sum() for col in campi_chiave_vuoti
-            }
-            totale_vuoti = sum(vuoti_per_colonna.values())
-
+            totale_vuoti = df[campi_chiave_vuoti].isnull().sum().sum()
             if totale_vuoti > 0:
                 st.warning(
-                    f"⚠️ **Celle Vuote Rilevate:** Ci sono alcune righe non compilate nei campi chiave."
+                    f"⚠️ **Celle Vuote Rilevate:** Trovate righe non compilate."
                 )
-                for col, qta in vuoti_per_colonna.items():
-                    if qta > 0:
-                        st.info(f"La colonna *{col}* ha **{qta}** righe vuote.")
             else:
                 st.success(
                     "✅ **Completezza Dati:** Superata. Nessuna cella vuota nei campi chiave."
@@ -190,14 +148,14 @@ if file_caricato is not None:
             num_doppioni = doppione_precedente.sum()
             if num_doppioni > 0:
                 st.error(
-                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati meri doppioni dei dati! Ci sono **{num_doppioni}** righe specchio contigue."
+                    f"🚨 **ALLARME RIGHE DUPLICATE:** Trovati **{num_doppioni}** meri doppioni specchio contigui!"
                 )
             else:
                 st.success(
-                    "✅ **Univocità Rilevazioni:** Superata. Nessuna riga presenta doppioni specchio contigui."
+                    "✅ **Univocità Rilevazioni:** Superata. Nessuna riga presenta doppioni contigui."
                 )
 
-        # --- TAB 2: ESPLORA LA TABELLA ---
+        # --- TAB 2: ESPLORA E ESPORTA ---
         with tab_esplora:
             st.subheader("Visualizzazione Filtri e Dati Completi")
 
@@ -207,15 +165,11 @@ if file_caricato is not None:
                     df["Emittente"].dropna().unique().tolist()
                 )
                 scelta_emittente = st.selectbox(
-                    "Filtra per Canale TV (Emittente)", lista_emittenti
+                    "Filtra per Canale TV", lista_emittenti
                 )
             with col2:
-                lista_brand = ["Tutti"] + sorted(
-                    df["Brand"].dropna().unique().tolist()
-                )
-                scelta_brand = st.selectbox(
-                    "Filtra per Marchio (Brand)", lista_brand
-                )
+                lista_brand = ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist())
+                scelta_brand = st.selectbox("Filtra per Marchio", lista_brand)
             with col3:
                 scelta_errore = st.selectbox(
                     "Filtra per stato errore",
@@ -228,22 +182,36 @@ if file_caricato is not None:
 
             df_filtrato = df.copy()
             if scelta_emittente != "Tutte":
-                df_filtrato = df_filtrato[
-                    df_filtrato["Emittente"] == scelta_emittente
-                ]
+                df_filtrato = df_filtrato[df_filtrato["Emittente"] == scelta_emittente]
             if scelta_brand != "Tutti":
                 df_filtrato = df_filtrato[df_filtrato["Brand"] == scelta_brand]
 
-            if (
-                scelta_errore
-                == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)"
-            ):
+            if scelta_errore == "Solo righe con ERRORI (Vuoti o Doppioni Contigui)":
                 df_filtrato = df_filtrato[righe_con_errori]
             elif scelta_errore == "Solo righe CORRETTE":
                 df_filtrato = df_filtrato[~righe_con_errori]
 
             st.write(f"Righe visualizzate: {len(df_filtrato)} su {len(df)}")
             st.dataframe(df_filtrato, use_container_width=True)
+
+            # --- TASTO DOWNLOAD EXCEL PULITO ---
+            st.markdown("---")
+            st.subheader("📥 Esporta Report Corretto")
+            df_pulito_da_scaricare = df[~righe_con_errori]
+
+            towrite = io.BytesIO()
+            with pd.ExcelWriter(towrite, engine="openpyxl") as writer:
+                df_pulito_da_scaricare.to_excel(
+                    writer, index=False, sheet_name="Dati_Puliti"
+                )
+            towrite.seek(0)
+
+            st.download_button(
+                label="🚀 Scarica il File Excel ripulito da tutti gli errori",
+                data=towrite,
+                file_name=f"Alfredo_Report_Cleaned.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            )
 
         # --- TAB 3: NUMERI CHIAVE ---
         with tab_metriche:
@@ -257,4 +225,5 @@ if file_caricato is not None:
 
     except Exception as e:
         st.error(f"Errore imprevisto durante la lettura della maschera: {e}")
+
 
