@@ -42,6 +42,23 @@ sinonimi_calcio = {
     "Audience_AMR": ["audience_amr", "audience_am", "audience", "amr"]
 }
 
+# --- DIZIONARIO DEI SINONIMI SPORT INVERNALI ---
+sinonimi_sport_invernali = {
+    "Emittente": ["emittente", "canale", "tv", "broadcaster", "dazn"],
+    "Giornata": ["giornata", "turno", "round", "specialita", "specialità", "disciplina"],
+    "Partita": ["partita", "match", "evento", "gara"],
+    "Brand": ["brand", "marchio", "sponsor"],
+    "Data": ["data", "giorno"],
+    "Detections_MxM_Id": ["detections_mxm_id", "detections_mxm_idminuto", "id_rilevazione", "detection_id"],
+    "Minuto": ["minuto", "minute", "ora"],
+    "Placement": ["placement", "posizionamento"],
+    "sec_to_time(dmm.durata)": ["sec_to_time(dmm.durata)", "ec_to_time(dmm.durata", "durata", "tempo"],
+    "Area_Totale": ["area_totale", "area totale", "totale area"],
+    "Area_Media_x_Sec": ["area_media_x_sec", "area media x sec", "area media per sec", "area media"],
+    "Percentuale_Schermo_Med": ["percentuale_schermo_med", "percentuale schermo med", "% schermo media per sec", "percentuale schermo"],
+    "Audience_AMR": ["audience_amr", "audience_am", "audience", "amr"]
+}
+
 # --- FUNZIONE DI NORMALIZZAZIONE ---
 def normalizza_colonne(dataframe, mappa_sinonimi):
     colonne_presenti = dataframe.columns.tolist()
@@ -67,7 +84,7 @@ st.sidebar.title("🎮 ALFREDO MENU")
 st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
 sport_selezionato = st.sidebar.radio(
     "Scegli la sezione:",
-    ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)"]
+    ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)", "⛷️ Sport Invernali"]
 )
 
 # ==============================================================================
@@ -149,7 +166,7 @@ if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
 # ==============================================================================
 # SEZIONE 2: CALCIO (NUOVA PAGINA DEDICATA E ISOLATA)
 # ==============================================================================
-else:
+elif sport_selezionato == "⚽ Calcio (Serie A / Estero)":
     st.title("ALFREDO - Sezione Calcio ⚽")
     st.markdown("Carica i file di monitoraggio del Calcio. È attiva la verifica con i sinonimi dedicati alla Serie A e campionati esteri.")
     
@@ -224,3 +241,82 @@ else:
                 
         except Exception as e:
             st.error(f"❌ Errore elaborazione Calcio: {e}")
+
+# ==============================================================================
+# SEZIONE 3: SPORT INVERNALI (NUOVA PAGINA DEDICATA E ISOLATA)
+# ==============================================================================
+else:
+    st.title("ALFREDO - Sezione Sport Invernali ⛷️")
+    st.markdown("Carica i file di monitoraggio degli Sport Invernali. È attiva la verifica con i campi del file di riferimento.")
+    
+    file_caricato_invernali = st.file_uploader("📂 Trascina qui il file Excel o CSV degli Sport Invernali", type=["xlsx", "xls", "csv"], key="invernali_file")
+    
+    if file_caricato_invernali is not None:
+        try:
+            # Lettura del file in base all'estensione
+            df_grezzo = pd.read_csv(file_caricato_invernali) if file_caricato_invernali.name.endswith(".csv") else pd.read_excel(file_caricato_invernali)
+            st.toast("File Sport Invernali caricato!", icon="⛷️")
+            
+            # Normalizzazione colonne con sinonimi specifici degli sport invernali
+            df = normalizza_colonne(df_grezzo, sinonimi_sport_invernali)
+            colonne_presenti = df.columns.tolist()
+            
+            # Controllo colonne obbligatorie sport invernali
+            campi_obbligatori = list(sinonimi_sport_invernali.keys())
+            colonne_mancanti = [c for c in campi_obbligatori if c not in colonne_presenti]
+            
+            if colonne_mancanti:
+                st.error("❌ La struttura del file Sport Invernali non è corretta. Mancano:")
+                for c in colonne_mancanti: st.markdown(f"- **{c}**")
+                st.stop()
+                
+            # Logica controllo doppioni e vuoti per gli Sport Invernali
+            colonne_controllo_doppione = ["Data", "Detections_MxM_Id", "Placement", "Minuto", "sec_to_time(dmm.durata)", "Area_Totale", "Area_Media_x_Sec", "Percentuale_Schermo_Med"]
+            colonne_effettive = [c for c in colonne_controllo_doppione if c in colonne_presenti]
+            
+            doppione_invernali = df.duplicated(subset=colonne_effettive, keep=False)
+            righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
+            righe_con_errori = righe_con_vuoti | doppione_invernali
+            
+            # Interfaccia a Tab per gli Sport Invernali
+            tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
+            
+            with tab_ver:
+                st.subheader("Rapporto Qualità Sport Invernali")
+                st.success("✅ Struttura campi verificata con successo.")
+                
+                if df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().sum().sum() > 0:
+                    st.warning("⚠️ Rilevate celle vuote nei campi chiave degli Sport Invernali.")
+                else:
+                    st.success("✅ Nessun valore mancante nei campi chiave.")
+                    
+                num_doppioni = doppione_invernali.sum()
+                if num_doppioni > 0:
+                    st.error(f"🚨 **ALLARME RIGHE DUPLICATE (SPORT INVERNALI):** Trovati **{num_doppioni}** doppioni rilevati!")
+                else:
+                    st.success("✅ **Univocità Rilevazioni:** Superata. Nessun duplicato trovato.")
+                    
+            with tab_esp:
+                col1, col2, col3 = st.columns(3)
+                with col1: scelta_emi = st.selectbox("Filtra Emittente", ["Tutte"] + sorted(df["Emittente"].dropna().unique().tolist()))
+                with col2: scelta_brd = st.selectbox("Filtra Marchio", ["Tutti"] + sorted(df["Brand"].dropna().unique().tolist()))
+                with col3: scelta_err = st.selectbox("Filtra Errori", ["Mostra tutti", "Solo ERRORI (Vuoti o Doppioni)", "Solo CORRETTE"])
+                
+                df_fil = df.copy()
+                if scelta_emi != "Tutte": df_fil = df_fil[df_fil["Emittente"] == scelta_emi]
+                if scelta_brd != "Tutti": df_fil = df_fil[df_fil["Brand"] == scelta_brd]
+                if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
+                elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
+                
+                st.dataframe(df_fil, use_container_width=True)
+                st.markdown("---")
+                excel_data = converti_df_in_excel(df_fil)
+                st.download_button(label="📁 Scarica Report Sport Invernali Normalizzato", data=excel_data, file_name="Alfredo_Sport_Invernali_Cleaned.xlsx")
+                
+            with tab_met:
+                st.subheader("Indicatori Sport Invernali")
+                st.metric("Totale Record Analizzati", f"{len(df):,}")
+                st.metric("Brand Rilevati", df["Brand"].nunique())
+                
+        except Exception as e:
+            st.error(f"❌ Errore elaborazione Sport Invernali: {e}")
