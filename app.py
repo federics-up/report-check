@@ -239,7 +239,7 @@ def mostra_dataframe_evidenziato(df_visualizzato, righe_vuote, righe_duplicate):
 # ==============================================================================
 st.sidebar.title("🎮 ALFREDO MENU")
 st.sidebar.caption("Report Quality Control")
-st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
+st.sidebar.markdown("Seleziona lo sport del report da analizzare.")
 sport_selezionato = st.sidebar.radio(
     "Scegli la sezione:",
     ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)", "⛷️ Sport Invernali"]
