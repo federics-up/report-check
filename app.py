@@ -7,6 +7,100 @@ st.set_page_config(
     page_title="ALFREDO🤖", page_icon="📊", layout="wide"
 )
 
+# --- MIGLIORIE GRAFICHE (NON MODIFICANO LA LOGICA DEI CONTROLLI) ---
+st.markdown("""
+<style>
+    .block-container {
+        padding-top: 1.8rem;
+        padding-bottom: 3rem;
+        max-width: 1450px;
+    }
+
+    .alfredo-hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 20px;
+        padding: 24px 28px;
+        margin: 4px 0 22px 0;
+        border: 1px solid rgba(128, 128, 128, 0.22);
+        border-radius: 18px;
+        background: linear-gradient(135deg, rgba(255,255,255,0.95), rgba(235,242,250,0.80));
+        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.07);
+    }
+
+    .alfredo-hero h1 {
+        margin: 0;
+        font-size: 2.15rem;
+        line-height: 1.1;
+    }
+
+    .alfredo-hero p {
+        margin: 8px 0 0 0;
+        opacity: 0.72;
+        font-size: 1rem;
+    }
+
+    .alfredo-badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        white-space: nowrap;
+        padding: 10px 16px;
+        border-radius: 999px;
+        font-weight: 750;
+        letter-spacing: 0.02em;
+        border: 1px solid rgba(128, 128, 128, 0.20);
+    }
+
+    .badge-basket { background: rgba(255, 149, 0, 0.14); }
+    .badge-calcio { background: rgba(52, 199, 89, 0.14); }
+    .badge-invernali { background: rgba(10, 132, 255, 0.14); }
+
+    .upload-card {
+        padding: 16px 20px;
+        margin: 6px 0 12px 0;
+        border-radius: 14px;
+        border: 1px solid rgba(128, 128, 128, 0.20);
+        border-left: 5px solid #2f80ed;
+        background: rgba(247, 250, 255, 0.72);
+    }
+
+    .upload-card h3 { margin: 0; font-size: 1.05rem; }
+    .upload-card p { margin: 5px 0 0 0; opacity: 0.70; }
+
+    div[data-testid="stMetric"] {
+        padding: 17px 18px;
+        border: 1px solid rgba(128, 128, 128, 0.20);
+        border-radius: 14px;
+        background: rgba(255,255,255,0.65);
+        box-shadow: 0 5px 16px rgba(15, 23, 42, 0.05);
+    }
+
+    div[data-testid="stDataFrame"] {
+        border: 1px solid rgba(128, 128, 128, 0.20);
+        border-radius: 12px;
+        overflow: hidden;
+    }
+
+    section[data-testid="stSidebar"] {
+        border-right: 1px solid rgba(128, 128, 128, 0.18);
+    }
+
+    .sidebar-footer {
+        margin-top: 28px;
+        padding-top: 14px;
+        border-top: 1px solid rgba(128,128,128,0.20);
+        font-size: 0.82rem;
+        opacity: 0.66;
+    }
+
+    @media (max-width: 800px) {
+        .alfredo-hero { align-items: flex-start; flex-direction: column; }
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- DIZIONARI DEI SINONIMI SPECIFICI ---
 sinonimi_basket = {
     "Emittente": ["emittente", "canale", "tv"],
@@ -77,14 +171,83 @@ def converti_df_in_excel(df_da_convertire):
         df_da_convertire.to_excel(writer, index=False, sheet_name='Dati_Normalizzati')
     return output.getvalue()
 
+
+# --- COMPONENTI GRAFICI RIUTILIZZABILI ---
+def mostra_intestazione(sport, emoji, descrizione, classe_badge):
+    st.markdown(
+        f"""
+        <div class="alfredo-hero">
+            <div>
+                <h1>ALFREDO 🤖</h1>
+                <p>{descrizione}</p>
+            </div>
+            <div class="alfredo-badge {classe_badge}">{emoji} {sport.upper()}</div>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def mostra_area_caricamento(titolo):
+    st.markdown(
+        f"""
+        <div class="upload-card">
+            <h3>📂 {titolo}</h3>
+            <p>Formati supportati: Excel XLSX, XLS e CSV</p>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+
+def mostra_riepilogo(df, righe_con_errori, doppioni):
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Record analizzati", f"{len(df):,}")
+    col2.metric("Brand rilevati", df["Brand"].nunique())
+    col3.metric("Righe con errori", int(righe_con_errori.sum()))
+    col4.metric("Duplicati", int(doppioni.sum()))
+
+    if int(righe_con_errori.sum()) == 0:
+        st.success("✅ FILE APPROVATO — Nessun errore rilevato")
+    else:
+        st.error(
+            f"❌ FILE DA CONTROLLARE — "
+            f"{int(righe_con_errori.sum())} righe presentano problemi"
+        )
+
+
+def mostra_dataframe_evidenziato(df_visualizzato, righe_vuote, righe_duplicate):
+    righe_vuote_filtrate = righe_vuote.reindex(df_visualizzato.index, fill_value=False)
+    righe_duplicate_filtrate = righe_duplicate.reindex(df_visualizzato.index, fill_value=False)
+
+    def evidenzia_riga(riga):
+        if bool(righe_duplicate_filtrate.loc[riga.name]):
+            return ["background-color: rgba(255, 99, 71, 0.22)"] * len(riga)
+        if bool(righe_vuote_filtrate.loc[riga.name]):
+            return ["background-color: rgba(255, 193, 7, 0.22)"] * len(riga)
+        return [""] * len(riga)
+
+    st.caption("Legenda: rosso = riga duplicata · giallo = campo chiave vuoto")
+    st.dataframe(
+        df_visualizzato.style.apply(evidenzia_riga, axis=1),
+        use_container_width=True,
+        height=520
+    )
+
 # ==============================================================================
 # BARRA LATERALE - SELEZIONE DELLO SPORT (LE DUE PAGINE SEPARATE)
 # ==============================================================================
 st.sidebar.title("🎮 ALFREDO MENU")
+st.sidebar.caption("Report Quality Control")
 st.sidebar.markdown("Seleziona lo sport del report da analizzare per attivare la logica corretta.")
 sport_selezionato = st.sidebar.radio(
     "Scegli la sezione:",
     ["🏀 Basket (Eurolega / LBA)", "⚽ Calcio (Serie A / Estero)", "⛷️ Sport Invernali"]
+)
+
+st.sidebar.markdown(
+    '<div class="sidebar-footer">ALFREDO · Versione grafica 1.1</div>',
+    unsafe_allow_html=True
 )
 
 # ==============================================================================
@@ -93,6 +256,8 @@ sport_selezionato = st.sidebar.radio(
 if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
     st.title("ALFREDO - Sezione Basket 🏀")
     st.markdown("Carica i file di monitoraggio dell'Eurolega o della LBA. È attiva la verifica rigida dei duplicati specchio.")
+    mostra_intestazione("Basket", "🏀", "Controllo qualità dei report di monitoraggio", "badge-basket")
+    mostra_area_caricamento("Carica il report Basket")
     
     file_caricato = st.file_uploader("📂 Trascina qui il file Excel o CSV del Basket", type=["xlsx", "xls", "csv"], key="basket_file")
     
@@ -120,6 +285,8 @@ if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
             doppione_basket = df.duplicated(subset=colonne_effettive, keep=False)
             righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
             righe_con_errori = righe_con_vuoti | doppione_basket
+
+            mostra_riepilogo(df, righe_con_errori, doppione_basket)
             
             tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
             
@@ -150,10 +317,10 @@ if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
                 if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
                 elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
                 
-                st.dataframe(df_fil, use_container_width=True)
+                mostra_dataframe_evidenziato(df_fil, righe_con_vuoti, doppione_basket)
                 st.markdown("---")
                 excel_data = converti_df_in_excel(df_fil)
-                st.download_button(label="📁 Scarica Report Basket Normalizzato", data=excel_data, file_name="Alfredo_Basket_Cleaned.xlsx")
+                st.download_button(label="📁 Scarica Report Basket Normalizzato", data=excel_data, file_name="Alfredo_Basket_Cleaned.xlsx", use_container_width=True, type="primary")
                 
             with tab_met:
                 st.subheader("Indicatori Basket")
@@ -169,6 +336,8 @@ if sport_selezionato == "🏀 Basket (Eurolega / LBA)":
 elif sport_selezionato == "⚽ Calcio (Serie A / Estero)":
     st.title("ALFREDO - Sezione Calcio ⚽")
     st.markdown("Carica i file di monitoraggio del Calcio. È attiva la verifica con i sinonimi dedicati alla Serie A e campionati esteri.")
+    mostra_intestazione("Calcio", "⚽", "Controllo qualità dei report di monitoraggio", "badge-calcio")
+    mostra_area_caricamento("Carica il report Calcio")
     
     file_caricato_calcio = st.file_uploader("📂 Trascina qui il file Excel o CSV del Calcio", type=["xlsx", "xls", "csv"], key="calcio_file")
     
@@ -198,6 +367,8 @@ elif sport_selezionato == "⚽ Calcio (Serie A / Estero)":
             doppione_calcio = df.duplicated(subset=colonne_effettive, keep=False)
             righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
             righe_con_errori = righe_con_vuoti | doppione_calcio
+
+            mostra_riepilogo(df, righe_con_errori, doppione_calcio)
             
             # Interfaccia a Tab per il Calcio
             tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
@@ -229,10 +400,10 @@ elif sport_selezionato == "⚽ Calcio (Serie A / Estero)":
                 if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
                 elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
                 
-                st.dataframe(df_fil, use_container_width=True)
+                mostra_dataframe_evidenziato(df_fil, righe_con_vuoti, doppione_calcio)
                 st.markdown("---")
                 excel_data = converti_df_in_excel(df_fil)
-                st.download_button(label="📁 Scarica Report Calcio Normalizzato", data=excel_data, file_name="Alfredo_Calcio_Cleaned.xlsx")
+                st.download_button(label="📁 Scarica Report Calcio Normalizzato", data=excel_data, file_name="Alfredo_Calcio_Cleaned.xlsx", use_container_width=True, type="primary")
                 
             with tab_met:
                 st.subheader("Indicatori Calcio")
@@ -248,6 +419,8 @@ elif sport_selezionato == "⚽ Calcio (Serie A / Estero)":
 else:
     st.title("ALFREDO - Sezione Sport Invernali ⛷️")
     st.markdown("Carica i file di monitoraggio degli Sport Invernali. È attiva la verifica con i campi del file di riferimento.")
+    mostra_intestazione("Sport Invernali", "⛷️", "Controllo qualità dei report di monitoraggio", "badge-invernali")
+    mostra_area_caricamento("Carica il report Sport Invernali")
     
     file_caricato_invernali = st.file_uploader("📂 Trascina qui il file Excel o CSV degli Sport Invernali", type=["xlsx", "xls", "csv"], key="invernali_file")
     
@@ -277,6 +450,8 @@ else:
             doppione_invernali = df.duplicated(subset=colonne_effettive, keep=False)
             righe_con_vuoti = df[["Emittente", "Brand", "Detections_MxM_Id", "Audience_AMR"]].isnull().any(axis=1)
             righe_con_errori = righe_con_vuoti | doppione_invernali
+
+            mostra_riepilogo(df, righe_con_errori, doppione_invernali)
             
             # Interfaccia a Tab per gli Sport Invernali
             tab_ver, tab_esp, tab_met = st.tabs(["🔍 Verifica", "👀 Esplora", "📈 Metriche"])
@@ -308,15 +483,18 @@ else:
                 if scelta_err == "Solo ERRORI (Vuoti o Doppioni)": df_fil = df_fil[righe_con_errori]
                 elif scelta_err == "Solo CORRETTE": df_fil = df_fil[~righe_con_errori]
                 
-                st.dataframe(df_fil, use_container_width=True)
+                mostra_dataframe_evidenziato(df_fil, righe_con_vuoti, doppione_invernali)
                 st.markdown("---")
                 excel_data = converti_df_in_excel(df_fil)
-                st.download_button(label="📁 Scarica Report Sport Invernali Normalizzato", data=excel_data, file_name="Alfredo_Sport_Invernali_Cleaned.xlsx")
+                st.download_button(label="📁 Scarica Report Sport Invernali Normalizzato", data=excel_data, file_name="Alfredo_Sport_Invernali_Cleaned.xlsx", use_container_width=True, type="primary")
                 
             with tab_met:
                 st.subheader("Indicatori Sport Invernali")
                 st.metric("Totale Record Analizzati", f"{len(df):,}")
                 st.metric("Brand Rilevati", df["Brand"].nunique())
+                
+        except Exception as e:
+            st.error(f"❌ Errore elaborazione Sport Invernali: {e}")
                 
         except Exception as e:
             st.error(f"❌ Errore elaborazione Sport Invernali: {e}")
